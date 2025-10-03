@@ -1,0 +1,17 @@
+{
+  "dashboards": [
+    {
+      "alias": "DigitalWonderlab.CountThings",
+      "view": "/App_Plugins/countthings/v13/dashboard.html",
+      "sections": [ "settings" ],
+      "weight": -1
+    }
+  ],
+  "javascript": [
+    "/App_Plugins/countthings/v13/controller.js",
+    "/App_Plugins/countthings/v13/app.js"
+  ],
+  "css": [
+    "/App_Plugins/countthings/count-things-style.css"
+  ]
+}

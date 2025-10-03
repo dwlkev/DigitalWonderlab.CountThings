@@ -1,0 +1,24 @@
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "name": "CountThings",
+  "version": "1.0.26",
+  "extensions": [
+    {
+      "type": "dashboard",
+      "alias": "countThingsDashboard",
+      "name": "Count Things Dashboard",
+      "js": "/App_Plugins/CountThings/count-things.js",
+      "weight": -1,
+      "meta": {
+        "label": "Count Things",
+        "pathname": "count-things"
+      },
+      "conditions": [
+        {
+          "alias": "Umb.Condition.SectionAlias",
+          "match": "Umb.Section.Settings"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+	<PropertyGroup>
+		<CountThingsContentFilesPath>$(MSBuildThisFileDirectory)..\content\App_Plugins\CountThings\**\*</CountThingsContentFilesPath>
+	</PropertyGroup>
+
+	<Target Name="CopyCountThingsAssets" BeforeTargets="Build">
+		<ItemGroup>
+			<CountThingsContentFiles Include="$(CountThingsContentFilesPath)" />
+		</ItemGroup>
+		<Message Text="Copying CountThings files: $(CountThingsContentFilesPath) - #@(CountThingsContentFiles->Count()) files" Importance="high" />
+		<Copy
+		  SourceFiles="@(CountThingsContentFiles)"
+		  DestinationFiles="@(CountThingsContentFiles->'$(MSBuildProjectDirectory)\App_Plugins\CountThings\%(RecursiveDir)%(Filename)%(Extension)')"
+		  SkipUnchangedFiles="true" />
+	</Target>
+
+	<Target Name="ClearCountThingsAssets" BeforeTargets="Clean">
+		<ItemGroup>
+			<CountThingsDir Include="$(MSBuildProjectDirectory)\App_Plugins\CountThings\" />
+		</ItemGroup>
+		<Message Text="Clear old CountThings data" Importance="high" />
+		<RemoveDir Directories="@(CountThingsDir)" />
+	</Target>
+
+</Project>

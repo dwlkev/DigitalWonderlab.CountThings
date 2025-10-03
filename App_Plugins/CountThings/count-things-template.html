@@ -1,0 +1,152 @@
+﻿<div class="count-things-wrapper">
+    <uui-box class="count-box">
+        <h1>Count Things</h1>
+        <p>
+            This dashboard shows counts of different Umbraco entities. Counts are retained in local storage.<br />
+            Choose to count individual items, or if you dare... <i>Count All The Things!</i> ;)
+        </p>
+        <uui-button label="Clear counts" id="clearStorage" class="clear-storage-btn" look="secondary"></uui-button>
+        <uui-button label="Count All The Things" id="countAll" class="count-all-btn" look="primary"></uui-button>
+    </uui-box>
+
+
+    <div class="count-section">
+        <h3>Content <span class="count-this-btn" id="countContent">⟳</span></h3>
+        <div class="count-container-wrapper">
+            <uui-card class="count-card">
+                Published
+                <uui-badge><span id="content-published-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Unpublished
+                <uui-badge><span id="content-unpublished-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Trashed
+                <uui-badge><span id="content-trashed-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Redirects
+                <uui-badge><span id="content-redirects-count">Not counted</span></uui-badge>
+            </uui-card>
+        </div>
+    </div>
+
+    <div class="count-section">
+        <h3>Media <span class="count-this-btn" id="countMedia">⟳</span></h3>
+        <div class="count-container-wrapper">
+            <uui-card class="count-card">
+                Folders
+                <uui-badge><span id="media-folder-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Images
+                <uui-badge><span id="media-image-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Videos
+                <uui-badge><span id="media-videos-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Other Files
+                <uui-badge><span id="media-other-files-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Large Files (>2MB)
+                <!--<uui-badge><span id="media-large-images-count">Not counted</span></uui-badge>-->
+                <uui-badge><span id="media-large-files-count">Not counted</span></uui-badge>
+            </uui-card>
+        </div>
+        <div class="sub-list-header">By file type:</div>
+        <!-- Placeholder for dynamic file type counts -->
+        <div class="sublist-container media-by-filetype">
+            <div id="media-filetypes-container"></div>
+        </div>
+    </div>
+
+    <div class="count-section">
+        <h3>Users <span class="count-this-btn" id="countUsers">⟳</span></h3>
+        <div class="count-container-wrapper">
+            <uui-card class="count-card">
+                Active Users
+                <uui-badge><span id="users-active-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Locked Users
+                <uui-badge><span id="users-locked-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                User Groups
+                <uui-badge><span id="users-groups-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Members
+                <uui-badge><span id="users-members-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Member Groups
+                <uui-badge><span id="users-member-groups-count">Not counted</span></uui-badge>
+            </uui-card>
+        </div>
+    </div>
+
+    <div class="count-section">
+        <h3>Schema <span class="count-this-btn" id="countSchema">⟳</span></h3>
+        <div class="count-container-wrapper">
+            <uui-card class="count-card">
+                Document Types
+                <uui-badge><span id="schema-doctypes-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Templates
+                <uui-badge><span id="schema-templates-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Partials
+                <uui-badge><span id="schema-partials-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Scripts
+                <uui-badge><span id="schema-scripts-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Stylesheets
+                <uui-badge><span id="schema-stylesheets-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Media Types
+                <uui-badge><span id="schema-mediatypes-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Member Types
+                <uui-badge><span id="schema-membertypes-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Data Types
+                <uui-badge><span id="schema-datatypes-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Languages
+                <uui-badge><span id="schema-languages-count">Not counted</span></uui-badge>
+            </uui-card>
+        </div>
+    </div>
+
+    <div class="count-section">
+        <h3>Umbraco Forms <span class="count-this-btn" id="countForms">⟳</span></h3>
+        <div class="count-container-wrapper">
+            <uui-card class="count-card">
+                Forms
+                <uui-badge><span id="forms-count">Not counted</span></uui-badge>
+            </uui-card>
+            <uui-card class="count-card">
+                Form Entries
+                <uui-badge><span id="forms-entries-count">Not counted</span></uui-badge>
+            </uui-card>
+        </div>
+    </div>
+
+
+
+    <div class="copy">Created with 💗 by <a href="https://digitalwonderlab.com" target="_blank">Digital Wonderlab</a></div>
+</div>
