@@ -15,7 +15,7 @@ A friendly Umbraco backoffice dashboard that shows counts of content, media, use
 - ✅ .NET 9.0
 
 ## Installation
-- Install via Nuget https://www.nuget.org/packages/DigitalWonderlab.CountThings
+- Install via Nuget https://www.nuget.org/packages/DigitalWonderlab.CountThings/latest
 - Go to Settings and click the Count Things tab
 - Counts are stored in local storage for faster loading.
 
