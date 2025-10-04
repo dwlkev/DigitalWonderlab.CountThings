@@ -4,7 +4,8 @@ using System.Linq;
 using Umbraco.Cms.Core.Models.Membership;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Infrastructure.Scoping;
-using Umbraco.Cms.Core.DependencyInjection; // for StaticServiceProvider
+using Umbraco.Cms.Core.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 
@@ -152,49 +153,124 @@ public class CountThingsController : ControllerBase
         var activeUsers = _userService.GetAll(0, int.MaxValue, out _).Count(u => u.IsApproved);
         var lockedUsers = _userService.GetAll(0, int.MaxValue, out _).Count(u => u.IsLockedOut);
 
-        // -------- v14/15/16 compatible user-group count --------
+        // Inside your GetUserCount() method, replace user groups block with this:
         int totalUserGroups = 0;
 
-        // Try v16+ service first
-        var userGroupServiceType = Type.GetType("Umbraco.Cms.Core.Services.IUserGroupService, Umbraco.Cms.Core");
-        if (userGroupServiceType != null)
-        {
-            // Resolve via the root provider (works inside an Umbraco scope too)
-            var sp = Umbraco.Cms.Core.DependencyInjection.StaticServiceProvider.Instance;
-            var userGroupService = sp.GetService(userGroupServiceType);
+        var spRoot = StaticServiceProvider.Instance;
 
-            // Most builds expose GetAll(): IEnumerable<IUserGroup>
-            var getAll = userGroupServiceType.GetMethod("GetAll", Type.EmptyTypes);
-            if (userGroupService != null && getAll != null)
+        // Try to find IUserGroupService in likely namespaces/assemblies (v14 → v16)
+        Type userGroupSvcType = Type.GetType("Umbraco.Cms.Core.Services.IUserGroupService, Umbraco.Cms.Core")
+                                ?? Type.GetType("Umbraco.Cms.Core.Security.IUserGroupService, Umbraco.Cms.Core")
+                                ?? Type.GetType("Umbraco.Cms.Core.Services.UserGroupService, Umbraco.Cms.Core");
+
+        if (userGroupSvcType != null)
+        {
+            // Use DI scope (scoped service)
+            var scopeFactory = spRoot.GetService(typeof(IServiceScopeFactory)) as IServiceScopeFactory;
+            using var diScope = scopeFactory?.CreateScope();
+            var sp = diScope?.ServiceProvider ?? spRoot;
+
+            var userGroupSvc = sp.GetService(userGroupSvcType);
+            if (userGroupSvc != null)
             {
-                var groupsObj = getAll.Invoke(userGroupService, null) as System.Collections.IEnumerable;
-                if (groupsObj != null) totalUserGroups = groupsObj.Cast<object>().Count();
-            }
-            else
-            {
-                // Fallback in case the API is slightly different; try "GetMany(int,int,out int)"
-                var getMany = userGroupServiceType.GetMethod("GetMany",
-                    new[] { typeof(int), typeof(int), typeof(int).MakeByRefType() });
-                if (userGroupService != null && getMany != null)
+                // 1) Try async GetAllAsync
+                var getAllAsync = userGroupSvcType.GetMethod("GetAllAsync", new[] { typeof(int), typeof(int) });
+                if (getAllAsync != null)
                 {
-                    object[] args = { 0, int.MaxValue, 0 };
-                    var many = getMany.Invoke(userGroupService, args) as System.Collections.IEnumerable;
-                    if (many != null) totalUserGroups = many.Cast<object>().Count();
+                    try
+                    {
+                        var task = getAllAsync.Invoke(userGroupSvc, new object[] { 0, int.MaxValue });
+                        var taskType = task?.GetType();
+                        var resultProp = taskType?.GetProperty("Result");
+                        var result = resultProp?.GetValue(task);
+                        if (result != null)
+                        {
+                            var totalProp = result.GetType().GetProperty("Total");
+                            if (totalProp != null)
+                            {
+                                totalUserGroups = Convert.ToInt32(totalProp.GetValue(result) ?? 0);
+                                goto DoneUserGroups;
+                            }
+                            var itemsProp = result.GetType().GetProperty("Items");
+                            var items = itemsProp?.GetValue(result) as System.Collections.IEnumerable;
+                            if (items != null)
+                            {
+                                totalUserGroups = items.Cast<object>().Count();
+                                goto DoneUserGroups;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                // 2) Try synchronous GetAll()
+                var getAllSync = userGroupSvcType.GetMethod("GetAll", Type.EmptyTypes);
+                if (getAllSync != null)
+                {
+                    try
+                    {
+                        var groupsObj = getAllSync.Invoke(userGroupSvc, null) as System.Collections.IEnumerable;
+                        if (groupsObj != null)
+                        {
+                            totalUserGroups = groupsObj.Cast<object>().Count();
+                            goto DoneUserGroups;
+                        }
+                    }
+                    catch { }
+                }
+
+                // 3) Try methods like GetMany, Filter etc
+                var getMany = userGroupSvcType.GetMethod("GetMany", new[] { typeof(int), typeof(int), typeof(int).MakeByRefType() });
+                if (getMany != null)
+                {
+                    try
+                    {
+                        object[] args = { 0, int.MaxValue, 0 };
+                        var manyResult = getMany.Invoke(userGroupSvc, args) as System.Collections.IEnumerable;
+                        if (manyResult != null)
+                        {
+                            totalUserGroups = manyResult.Cast<object>().Count();
+                            goto DoneUserGroups;
+                        }
+                    }
+                    catch { }
                 }
             }
         }
-        else
+
+        // Fallback: legacy IUserService.GetAllUserGroups
         {
-            // v14/v15 path: call the old IUserService method via reflection (so v16 still compiles)
-            var getAllGroupsOld = typeof(Umbraco.Cms.Core.Services.IUserService)
-                .GetMethod("GetAllUserGroups", Type.EmptyTypes);
-            if (getAllGroupsOld != null)
+            var getAllUG = typeof(Umbraco.Cms.Core.Services.IUserService)
+                .GetMethod("GetAllUserGroups", new[] { typeof(int[]) });
+            if (getAllUG != null)
             {
-                var groupsObj = getAllGroupsOld.Invoke(_userService, null) as System.Collections.IEnumerable;
-                if (groupsObj != null) totalUserGroups = groupsObj.Cast<object>().Count();
+                try
+                {
+                    var groups = getAllUG.Invoke(_userService, new object[] { Array.Empty<int>() }) as System.Collections.IEnumerable;
+                    if (groups != null)
+                        totalUserGroups = groups.Cast<object>().Count();
+                }
+                catch { }
             }
         }
-        // -------------------------------------------------------
+
+    // Final fallback: SQL on user group table
+    DoneUserGroups:
+        if (totalUserGroups == 0)
+        {
+            try
+            {
+                using var s = _scopeProvider.CreateScope();
+                totalUserGroups = s.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoUserGroup");
+                s.Complete();
+            }
+            catch { }
+        }
+
+        // Then your `userGroups = totalUserGroups` in the JSON
+
+        // ---------------------------------------------------------------------------
+
 
         var totalMembers = _memberService.GetAll(0, int.MaxValue, out _).Count();
         var totalMemberGroups = _memberService.GetAllRoles().Count();
@@ -281,79 +357,95 @@ public class CountThingsController : ControllerBase
     [HttpGet("forms")]
     public IActionResult GetFormsCount()
     {
-        // 1) Detect Umbraco Forms assembly
-        var hasForms = AppDomain.CurrentDomain
+        // A) Is Forms installed? (assembly check only)
+        var hasFormsAssembly = AppDomain.CurrentDomain
             .GetAssemblies()
             .Any(a => a.GetName().Name.Equals("Umbraco.Forms.Core", StringComparison.OrdinalIgnoreCase));
 
-        if (!hasForms)
-        {
+        if (!hasFormsAssembly)
             return Ok(new { installed = false, total = 0, entries = 0 });
-        }
 
-        // 2) Resolve types by name (no compile-time reference)
+        // B) Types (no compile-time refs)
         var formRepoType = Type.GetType("Umbraco.Forms.Core.Persistence.Repositories.IFormRepository, Umbraco.Forms.Core");
         var recordReaderType = Type.GetType("Umbraco.Forms.Core.Services.IRecordReaderService, Umbraco.Forms.Core");
-        if (formRepoType is null || recordReaderType is null)
-        {
-            // Forms present but API types not found (unexpected / version mismatch)
-            return Ok(new { installed = false, total = 0, entries = 0 });
-        }
 
-        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        // C) Create an Umbraco DB scope AND a DI scope (critical: repo is scoped)
+        using var umbScope = _scopeProvider.CreateScope(autoComplete: true);
 
-        // Use the root provider. Repositories will still run inside the ambient scope created above.
-        var sp = StaticServiceProvider.Instance;
+        var root = StaticServiceProvider.Instance;
+        var scopeFactory = root.GetService(typeof(IServiceScopeFactory)) as IServiceScopeFactory;
+        using var diScope = scopeFactory?.CreateScope();
+        var sp = diScope?.ServiceProvider ?? root; // fall back to root if needed
 
-        var formRepo = sp.GetService(formRepoType);
-        var recordReader = sp.GetService(recordReaderType);
-        if (formRepo is null || recordReader is null)
-        {
-            return Ok(new { installed = false, total = 0, entries = 0 });
-        }
-
-        // 3) Call IFormRepository.GetMany()
-        var getMany = formRepoType.GetMethod("GetMany", Type.EmptyTypes);
-        if (getMany is null)
-            return Ok(new { installed = false, total = 0, entries = 0 });
-
-        var formsObj = getMany.Invoke(formRepo, null);
-        var formsEnum = (formsObj as System.Collections.IEnumerable) ?? Array.Empty<object>();
+        object formRepo = formRepoType != null ? sp.GetService(formRepoType) : null;
+        object recordReader = recordReaderType != null ? sp.GetService(recordReaderType) : null;
 
         int formCount = 0;
         long entryCount = 0;
 
-        // 4) For each FormEntity, read Guid Key and call IRecordReaderService.GetRecordsFromForm(Guid, int, int)
-        var readerMethod = recordReaderType.GetMethod(
-            "GetRecordsFromForm",
-            new[] { typeof(Guid), typeof(int), typeof(int) });
-
-        foreach (var formEntity in formsEnum)
+        // D) Try repository first (reflection)
+        if (formRepo != null)
         {
-            if (formEntity is null) continue;
-            formCount++;
+            var getMany = formRepoType.GetMethod("GetMany", Type.EmptyTypes);
+            var formsObj = getMany?.Invoke(formRepo, null) as System.Collections.IEnumerable;
+            var forms = formsObj?.Cast<object>().ToList() ?? new List<object>();
+            formCount = forms.Count;
 
-            var keyProp = formEntity.GetType().GetProperty("Key"); // Guid Key on FormEntity in v14
-            if (keyProp == null) continue;
-
-            var keyVal = keyProp.GetValue(formEntity);
-            if (keyVal is Guid key && readerMethod != null)
+            // Sum entries with IRecordReaderService if available (still paged)
+            if (recordReader != null)
             {
-                var pageObj = readerMethod.Invoke(recordReader, new object[] { key, 1, 1 });
-                if (pageObj != null)
+                var readerMethod = recordReaderType.GetMethod(
+                    "GetRecordsFromForm",
+                    new[] { typeof(Guid), typeof(int), typeof(int) });
+
+                foreach (var formEntity in forms)
                 {
-                    var totalItemsProp = pageObj.GetType().GetProperty("TotalItems");
-                    if (totalItemsProp != null)
+                    if (formEntity is null) continue;
+
+                    // v14+ uses 'Key'; keep some aliases just in case
+                    var keyProp = formEntity.GetType().GetProperty("Key")
+                              ?? formEntity.GetType().GetProperty("Id")
+                              ?? formEntity.GetType().GetProperty("UniqueId");
+
+                    if (keyProp == null) continue;
+                    if (keyProp.GetValue(formEntity) is Guid key && readerMethod != null)
                     {
-                        var totalItems = Convert.ToInt64(totalItemsProp.GetValue(pageObj) ?? 0L);
-                        entryCount += totalItems; // long to avoid overflow
+                        try
+                        {
+                            var pageObj = readerMethod.Invoke(recordReader, new object[] { key, 1, 1 });
+                            var totalItemsProp = pageObj?.GetType().GetProperty("TotalItems");
+                            if (totalItemsProp != null)
+                                entryCount += Convert.ToInt64(totalItemsProp.GetValue(pageObj) ?? 0L);
+                        }
+                        catch
+                        {
+                            // ignore; we'll fall back to SQL below
+                        }
                     }
                 }
             }
         }
 
+        // E) DB fallbacks (version-proof)
+        //    - Number of forms
+        if (formCount == 0)
+        {
+            try { formCount = Convert.ToInt32(umbScope.Database.ExecuteScalar<long>("SELECT COUNT(*) FROM UFForms")); }
+            catch { /* leave 0 */ }
+        }
+
+        //    - Total entries across all forms
+        if (entryCount == 0 && formCount > 0)
+        {
+            try { entryCount = umbScope.Database.ExecuteScalar<long>("SELECT COUNT(*) FROM UFRecords"); }
+            catch { /* leave 0 */ }
+        }
+
         return Ok(new { installed = true, total = formCount, entries = entryCount });
     }
+
+
+
 
 
 }

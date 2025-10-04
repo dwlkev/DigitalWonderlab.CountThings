@@ -4,7 +4,7 @@
       "alias": "DigitalWonderlab.CountThings",
       "view": "/App_Plugins/countthings/v13/dashboard.html",
       "sections": [ "settings" ],
-      "weight": -1
+      "weight": 10
     }
   ],
   "javascript": [

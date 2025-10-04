@@ -6,7 +6,7 @@
 		<!-- NuGet metadata -->
 		<IsPackable>true</IsPackable>
 		<PackageId>DigitalWonderlab.CountThings</PackageId>
-		<Version>1.1.0</Version>
+		<Version>1.1.2</Version>
 		<!-- Bump for reinstall -->
 		<Authors>Digital Wonderlab</Authors>
 		<Company>Digital Wonderlab</Company>
@@ -35,6 +35,10 @@
 		<PackageReference Include="Umbraco.Cms.Core" Version="[15.0.0,17.0.0)" PrivateAssets="all" />
 		<PackageReference Include="Umbraco.Cms.Web.Common" Version="[15.0.0,17.0.0)" PrivateAssets="all" />
 		<PackageReference Include="Umbraco.Cms.Infrastructure" Version="[15.0.0,17.0.0)" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" PrivateAssets="all" />
 	</ItemGroup>
 
 	<ItemGroup>
