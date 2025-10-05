@@ -1,13 +1,13 @@
 ﻿using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
-using System.Linq;
-using Umbraco.Cms.Core.Models.Membership;
-using Umbraco.Cms.Core.Services;
-using Umbraco.Cms.Infrastructure.Scoping;
-using Umbraco.Cms.Core.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using Umbraco.Cms.Core.DependencyInjection; // for StaticServiceProvider
+using Umbraco.Cms.Core.Models.Membership;
+using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Infrastructure.Scoping;
 
 
 
@@ -90,29 +90,55 @@ public class CountThingsController : ControllerBase
 
         var folders = allMediaItems.Count(m => m.ContentType.Alias == "Folder");
 
+        // ---- IMAGE classification ----
         var imageAliases = new HashSet<string> { "Image", "umbracoMediaVectorGraphics" };
-        var images = allMediaItems.Count(m => imageAliases.Contains(m.ContentType.Alias));
+        var imageExtensions = new HashSet<string> { "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp" };
 
-        var videoAliases = new HashSet<string> { "umbracoMediaVideo", "umbracoMediaAudio" };
-        var videos = allMediaItems.Count(m => videoAliases.Contains(m.ContentType.Alias));
+        var images = allMediaItems.Count(m =>
+            imageAliases.Contains(m.ContentType.Alias) ||
+            (m.HasProperty("umbracoExtension") &&
+             imageExtensions.Contains((m.GetValue<string>("umbracoExtension") ?? "")
+                 .Trim().TrimStart('.').ToLowerInvariant()))
+        );
 
-        //var largeImages = allMediaItems
-        //    .Where(m => imageAliases.Contains(m.ContentType.Alias) && m.GetValue<int>("umbracoBytes") > 2_097_152)
-        //    .Count();        
+        // ---- VIDEO classification ----
+        var videoAliases = new HashSet<string> { "umbracoMediaVideo" };
+        var videoExtensions = new HashSet<string> { "mp4", "mov", "avi", "wmv", "mkv", "mpeg", "mpg", "webm" };
 
+        var videos = allMediaItems.Count(m =>
+            videoAliases.Contains(m.ContentType.Alias) ||
+            (m.HasProperty("umbracoExtension") &&
+             videoExtensions.Contains((m.GetValue<string>("umbracoExtension") ?? "")
+                 .Trim().TrimStart('.').ToLowerInvariant()))
+        );
+
+        // ---- AUDIO classification ----
+        var audioAliases = new HashSet<string> { "umbracoMediaAudio" };
+        var audioExtensions = new HashSet<string> { "mp3", "wav", "ogg", "flac", "aac", "m4a" };
+
+        var audios = allMediaItems.Count(m =>
+            audioAliases.Contains(m.ContentType.Alias) ||
+            (m.HasProperty("umbracoExtension") &&
+             audioExtensions.Contains((m.GetValue<string>("umbracoExtension") ?? "")
+                 .Trim().TrimStart('.').ToLowerInvariant()))
+        );
+
+        // ---- Large files (>2MB, excluding folders) ----
         var largeFiles = allMediaItems
-        .Where(m => m.HasProperty("umbracoBytes")
-                 && m.GetValue<int>("umbracoBytes") > 2_097_152
-                 && m.ContentType.Alias != "Folder")
-        .Count();
+            .Where(m => m.HasProperty("umbracoBytes")
+                     && m.GetValue<int>("umbracoBytes") > 2_097_152
+                     && m.ContentType.Alias != "Folder")
+            .Count();
 
-        // pull unknowns out as "other"
+        // ---- Other files (not in image/audio/video/folder) ----
         var otherFilesCount = allMediaItems.Count(m =>
-        !imageAliases.Contains(m.ContentType.Alias) &&
-        !videoAliases.Contains(m.ContentType.Alias) &&
-        m.ContentType.Alias != "Folder");
+            !imageAliases.Contains(m.ContentType.Alias) &&
+            !videoAliases.Contains(m.ContentType.Alias) &&
+            !audioAliases.Contains(m.ContentType.Alias) &&
+            m.ContentType.Alias != "Folder"
+        );
 
-        // NORMALISE extension: null/empty -> "_unknown", trim dot, lowercase
+        // ---- File type breakdown ----
         var fileTypeCounts = allMediaItems
             .Where(m => m.HasProperty("umbracoExtension"))
             .Select(m => m.GetValue<string>("umbracoExtension"))
@@ -122,7 +148,6 @@ public class CountThingsController : ControllerBase
             .GroupBy(ext => ext)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        // return all known extensions (including docs/xls/pdf/etc.), exclude the placeholder
         var filteredFileTypeCounts = fileTypeCounts
             .Where(kvp => kvp.Key != "_unknown")
             .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
@@ -133,12 +158,13 @@ public class CountThingsController : ControllerBase
             folders,
             images,
             videos,
-            //largeImages,
+            audios,
             largeFiles,
             other = otherFilesCount,
             fileTypes = filteredFileTypeCounts
         });
     }
+
 
 
 

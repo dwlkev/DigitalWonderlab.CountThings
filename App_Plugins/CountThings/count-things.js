@@ -101,7 +101,7 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             "media-folder-count",
             "media-image-count",
             "media-videos-count",
-            //"media-large-images-count",
+            "media-audios-count",
             "media-large-files-count",
             "media-other-files-count",
             "users-total-count",
@@ -123,6 +123,7 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             "forms-count",
             "forms-entries-count"
         ];
+
 
         keys.forEach((key) => {
             const storedValue = localStorage.getItem(key);
@@ -172,7 +173,7 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
                 folders: "media-folder-count",
                 images: "media-image-count",
                 videos: "media-videos-count",
-                //largeImages: "media-large-images-count",
+                audios: "media-audios-count",
                 largeFiles: "media-large-files-count",
                 other: "media-other-files-count"
             },

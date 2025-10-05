@@ -54,12 +54,14 @@
         function loadStoredCounts() {
             var keys = [
                 "content-published-count", "content-unpublished-count", "content-trashed-count", "content-redirects-count",
-                "media-folder-count", "media-image-count", "media-videos-count", "media-other-files-count", "media-large-files-count",
+                "media-folder-count", "media-image-count", "media-videos-count", "media-audios-count",  // <-- NEW
+                "media-other-files-count", "media-large-files-count",
                 "users-active-count", "users-locked-count", "users-groups-count", "users-members-count", "users-member-groups-count",
                 "schema-doctypes-count", "schema-templates-count", "schema-partials-count", "schema-scripts-count",
                 "schema-stylesheets-count", "schema-mediatypes-count", "schema-membertypes-count", "schema-datatypes-count",
                 "schema-languages-count", "forms-count", "forms-entries-count"
             ];
+
 
             keys.forEach(function (k) {
                 var v = localStorage.getItem(k);
@@ -110,9 +112,11 @@
                     folders: "media-folder-count",
                     images: "media-image-count",
                     videos: "media-videos-count",
+                    audios: "media-audios-count",
                     other: "media-other-files-count",
                     largeFiles: "media-large-files-count"
                 },
+
                 users: {
                     active: "users-active-count",
                     locked: "users-locked-count",
@@ -170,7 +174,7 @@
             var types = ["content", "media", "users", "schema", "forms"];
             for (var i = 0; i < types.length; i++) {
                 await fetchCount(types[i]);
-            }            
+            }
             await ensureConfetti();
             fireConfetti();
         }
