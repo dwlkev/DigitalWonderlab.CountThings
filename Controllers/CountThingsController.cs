@@ -325,25 +325,78 @@ public class CountThingsController : ControllerBase
         var totalMemberTypes = _memberTypeService.GetAll().Count();
         var totalDataTypes = _dataTypeService.GetAll().Count();
 
-        // ---- v13–v16 compatible language count (no compile-time types) ----
+        // ---- v13–v16 robust language count ----
         int totalLanguages = 0;
-        var sp = StaticServiceProvider.Instance;
 
-        // Try v14+ first: ILanguageService.GetAll()
+        // Create an Umbraco DB scope and a DI scope so services can operate correctly
+        using var umbScope = _scopeProvider.CreateScope(autoComplete: true);
+        var root = StaticServiceProvider.Instance;
+        var scopeFactory = root.GetService(typeof(IServiceScopeFactory)) as IServiceScopeFactory;
+        using var diScope = scopeFactory?.CreateScope();
+        var sp = diScope?.ServiceProvider ?? root;
+
+        // Try v14+ first: ILanguageService (sync or async)
         var langServiceType = Type.GetType("Umbraco.Cms.Core.Services.ILanguageService, Umbraco.Cms.Core");
         if (langServiceType != null)
         {
             var langService = sp.GetService(langServiceType);
-            var getAll = langServiceType.GetMethod("GetAll", Type.EmptyTypes);
-            if (langService != null && getAll != null)
+            if (langService != null)
             {
-                var langs = getAll.Invoke(langService, null) as System.Collections.IEnumerable;
-                if (langs != null) totalLanguages = langs.Cast<object>().Count();
+                // Try sync GetAll()
+                var getAll = langServiceType.GetMethod("GetAll", Type.EmptyTypes);
+                if (getAll != null)
+                {
+                    try
+                    {
+                        var langs = getAll.Invoke(langService, null) as System.Collections.IEnumerable;
+                        if (langs != null) totalLanguages = langs.Cast<object>().Count();
+                    }
+                    catch { /* ignore; try async/other fallbacks */ }
+                }
+
+                // Try async GetAllAsync([CancellationToken])
+                if (totalLanguages == 0)
+                {
+                    var getAllAsync = langServiceType.GetMethod("GetAllAsync", Type.EmptyTypes)
+                                      ?? langServiceType.GetMethod("GetAllAsync", new[] { typeof(System.Threading.CancellationToken) });
+
+                    if (getAllAsync != null)
+                    {
+                        try
+                        {
+                            object taskObj = getAllAsync.GetParameters().Length == 1
+                                ? getAllAsync.Invoke(langService, new object[] { default(System.Threading.CancellationToken) })
+                                : getAllAsync.Invoke(langService, null);
+
+                            if (taskObj is System.Threading.Tasks.Task t)
+                            {
+                                t.GetAwaiter().GetResult();
+                                var resultProp = t.GetType().GetProperty("Result");
+                                var result = resultProp?.GetValue(t);
+
+                                // Commonly Task<IEnumerable<ILanguage>>; count enumerable if present
+                                if (result is System.Collections.IEnumerable en)
+                                {
+                                    totalLanguages = en.Cast<object>().Count();
+                                }
+                                else
+                                {
+                                    // Edge: if a paged model is returned (unlikely), try a Total property
+                                    var totalProp = result?.GetType().GetProperty("Total");
+                                    if (totalProp != null)
+                                        totalLanguages = Convert.ToInt32(totalProp.GetValue(result) ?? 0);
+                                }
+                            }
+                        }
+                        catch { /* ignore; fallback next */ }
+                    }
+                }
             }
         }
-        else
+
+        // Fallback to v13: ILocalizationService.GetAllLanguages()
+        if (totalLanguages == 0)
         {
-            // Fallback to v13: ILocalizationService.GetAllLanguages()
             var locServiceType = Type.GetType("Umbraco.Cms.Core.Services.ILocalizationService, Umbraco.Cms.Core");
             if (locServiceType != null)
             {
@@ -351,12 +404,26 @@ public class CountThingsController : ControllerBase
                 var getAllLangs = locServiceType.GetMethod("GetAllLanguages", Type.EmptyTypes);
                 if (locService != null && getAllLangs != null)
                 {
-                    var langs = getAllLangs.Invoke(locService, null) as System.Collections.IEnumerable;
-                    if (langs != null) totalLanguages = langs.Cast<object>().Count();
+                    try
+                    {
+                        var langs = getAllLangs.Invoke(locService, null) as System.Collections.IEnumerable;
+                        if (langs != null) totalLanguages = langs.Cast<object>().Count();
+                    }
+                    catch { /* ignore; final DB fallback below */ }
                 }
             }
         }
-        // -------------------------------------------------------------------
+
+        // Final DB fallback (stable across versions)
+        if (totalLanguages == 0)
+        {
+            try
+            {
+                totalLanguages = umbScope.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoLanguage");
+            }
+            catch { /* leave 0 if something is really off */ }
+        }
+        // ----------------------------------------
 
         var totalSchema = totalDocTypes + totalTemplates + totalPartials + totalScripts +
                           totalStylesheets + totalMediaTypes + totalMemberTypes +
@@ -376,6 +443,7 @@ public class CountThingsController : ControllerBase
             languages = totalLanguages
         });
     }
+
 
 
 
