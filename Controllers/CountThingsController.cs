@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Umbraco.Cms.Core.DependencyInjection; // for StaticServiceProvider
+using Umbraco.Cms.Core.DependencyInjection; 
 using Umbraco.Cms.Core.Models.Membership;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Infrastructure.Scoping;
@@ -71,7 +71,7 @@ public class CountThingsController : ControllerBase
 
         return Ok(new
         {
-            total = allContent.Count, // This includes all items, trashed or not
+            total = allContent.Count, 
             published = publishedCount,
             unpublished = unpublishedCount,
             trashed = trashedCount,
@@ -90,7 +90,6 @@ public class CountThingsController : ControllerBase
 
         var folders = allMediaItems.Count(m => m.ContentType.Alias == "Folder");
 
-        // ---- IMAGE classification ----
         var imageAliases = new HashSet<string> { "Image", "umbracoMediaVectorGraphics" };
         var imageExtensions = new HashSet<string> { "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp" };
 
@@ -101,7 +100,6 @@ public class CountThingsController : ControllerBase
                  .Trim().TrimStart('.').ToLowerInvariant()))
         );
 
-        // ---- VIDEO classification ----
         var videoAliases = new HashSet<string> { "umbracoMediaVideo" };
         var videoExtensions = new HashSet<string> { "mp4", "mov", "avi", "wmv", "mkv", "mpeg", "mpg", "webm" };
 
@@ -112,7 +110,6 @@ public class CountThingsController : ControllerBase
                  .Trim().TrimStart('.').ToLowerInvariant()))
         );
 
-        // ---- AUDIO classification ----
         var audioAliases = new HashSet<string> { "umbracoMediaAudio" };
         var audioExtensions = new HashSet<string> { "mp3", "wav", "ogg", "flac", "aac", "m4a" };
 
@@ -123,14 +120,12 @@ public class CountThingsController : ControllerBase
                  .Trim().TrimStart('.').ToLowerInvariant()))
         );
 
-        // ---- Large files (>2MB, excluding folders) ----
         var largeFiles = allMediaItems
             .Where(m => m.HasProperty("umbracoBytes")
                      && m.GetValue<int>("umbracoBytes") > 2_097_152
                      && m.ContentType.Alias != "Folder")
             .Count();
 
-        // ---- Other files (not in image/audio/video/folder) ----
         var otherFilesCount = allMediaItems.Count(m =>
             !imageAliases.Contains(m.ContentType.Alias) &&
             !videoAliases.Contains(m.ContentType.Alias) &&
@@ -138,7 +133,6 @@ public class CountThingsController : ControllerBase
             m.ContentType.Alias != "Folder"
         );
 
-        // ---- File type breakdown ----
         var fileTypeCounts = allMediaItems
             .Where(m => m.HasProperty("umbracoExtension"))
             .Select(m => m.GetValue<string>("umbracoExtension"))
@@ -178,28 +172,24 @@ public class CountThingsController : ControllerBase
         var totalUsers = _userService.GetAll(0, int.MaxValue, out _).Count();
         var activeUsers = _userService.GetAll(0, int.MaxValue, out _).Count(u => u.IsApproved);
         var lockedUsers = _userService.GetAll(0, int.MaxValue, out _).Count(u => u.IsLockedOut);
-
-        // Inside your GetUserCount() method, replace user groups block with this:
+        
         int totalUserGroups = 0;
 
         var spRoot = StaticServiceProvider.Instance;
-
-        // Try to find IUserGroupService in likely namespaces/assemblies (v14 → v16)
+        
         Type userGroupSvcType = Type.GetType("Umbraco.Cms.Core.Services.IUserGroupService, Umbraco.Cms.Core")
                                 ?? Type.GetType("Umbraco.Cms.Core.Security.IUserGroupService, Umbraco.Cms.Core")
                                 ?? Type.GetType("Umbraco.Cms.Core.Services.UserGroupService, Umbraco.Cms.Core");
 
         if (userGroupSvcType != null)
-        {
-            // Use DI scope (scoped service)
+        {         
             var scopeFactory = spRoot.GetService(typeof(IServiceScopeFactory)) as IServiceScopeFactory;
             using var diScope = scopeFactory?.CreateScope();
             var sp = diScope?.ServiceProvider ?? spRoot;
 
             var userGroupSvc = sp.GetService(userGroupSvcType);
             if (userGroupSvc != null)
-            {
-                // 1) Try async GetAllAsync
+            {                
                 var getAllAsync = userGroupSvcType.GetMethod("GetAllAsync", new[] { typeof(int), typeof(int) });
                 if (getAllAsync != null)
                 {
@@ -228,8 +218,7 @@ public class CountThingsController : ControllerBase
                     }
                     catch { }
                 }
-
-                // 2) Try synchronous GetAll()
+                
                 var getAllSync = userGroupSvcType.GetMethod("GetAll", Type.EmptyTypes);
                 if (getAllSync != null)
                 {
@@ -244,8 +233,7 @@ public class CountThingsController : ControllerBase
                     }
                     catch { }
                 }
-
-                // 3) Try methods like GetMany, Filter etc
+                
                 var getMany = userGroupSvcType.GetMethod("GetMany", new[] { typeof(int), typeof(int), typeof(int).MakeByRefType() });
                 if (getMany != null)
                 {
@@ -263,8 +251,7 @@ public class CountThingsController : ControllerBase
                 }
             }
         }
-
-        // Fallback: legacy IUserService.GetAllUserGroups
+        
         {
             var getAllUG = typeof(Umbraco.Cms.Core.Services.IUserService)
                 .GetMethod("GetAllUserGroups", new[] { typeof(int[]) });
@@ -279,8 +266,7 @@ public class CountThingsController : ControllerBase
                 catch { }
             }
         }
-
-    // Final fallback: SQL on user group table
+    
     DoneUserGroups:
         if (totalUserGroups == 0)
         {
@@ -293,11 +279,6 @@ public class CountThingsController : ControllerBase
             catch { }
         }
 
-        // Then your `userGroups = totalUserGroups` in the JSON
-
-        // ---------------------------------------------------------------------------
-
-
         var totalMembers = _memberService.GetAll(0, int.MaxValue, out _).Count();
         var totalMemberGroups = _memberService.GetAllRoles().Count();
 
@@ -306,7 +287,7 @@ public class CountThingsController : ControllerBase
             total = totalUsers,
             active = activeUsers,
             locked = lockedUsers,
-            userGroups = totalUserGroups,   // now works on v14/15/16
+            userGroups = totalUserGroups,  
             members = totalMembers,
             memberGroups = totalMemberGroups
         });
@@ -324,25 +305,21 @@ public class CountThingsController : ControllerBase
         var totalMediaTypes = _mediaTypeService.GetAll().Count();
         var totalMemberTypes = _memberTypeService.GetAll().Count();
         var totalDataTypes = _dataTypeService.GetAll().Count();
-
-        // ---- v13–v16 robust language count ----
+        
         int totalLanguages = 0;
-
-        // Create an Umbraco DB scope and a DI scope so services can operate correctly
+        
         using var umbScope = _scopeProvider.CreateScope(autoComplete: true);
         var root = StaticServiceProvider.Instance;
         var scopeFactory = root.GetService(typeof(IServiceScopeFactory)) as IServiceScopeFactory;
         using var diScope = scopeFactory?.CreateScope();
         var sp = diScope?.ServiceProvider ?? root;
-
-        // Try v14+ first: ILanguageService (sync or async)
+        
         var langServiceType = Type.GetType("Umbraco.Cms.Core.Services.ILanguageService, Umbraco.Cms.Core");
         if (langServiceType != null)
         {
             var langService = sp.GetService(langServiceType);
             if (langService != null)
-            {
-                // Try sync GetAll()
+            {                
                 var getAll = langServiceType.GetMethod("GetAll", Type.EmptyTypes);
                 if (getAll != null)
                 {
@@ -351,10 +328,9 @@ public class CountThingsController : ControllerBase
                         var langs = getAll.Invoke(langService, null) as System.Collections.IEnumerable;
                         if (langs != null) totalLanguages = langs.Cast<object>().Count();
                     }
-                    catch { /* ignore; try async/other fallbacks */ }
+                    catch { }
                 }
-
-                // Try async GetAllAsync([CancellationToken])
+                
                 if (totalLanguages == 0)
                 {
                     var getAllAsync = langServiceType.GetMethod("GetAllAsync", Type.EmptyTypes)
@@ -373,28 +349,25 @@ public class CountThingsController : ControllerBase
                                 t.GetAwaiter().GetResult();
                                 var resultProp = t.GetType().GetProperty("Result");
                                 var result = resultProp?.GetValue(t);
-
-                                // Commonly Task<IEnumerable<ILanguage>>; count enumerable if present
+                                
                                 if (result is System.Collections.IEnumerable en)
                                 {
                                     totalLanguages = en.Cast<object>().Count();
                                 }
                                 else
-                                {
-                                    // Edge: if a paged model is returned (unlikely), try a Total property
+                                {                                    
                                     var totalProp = result?.GetType().GetProperty("Total");
                                     if (totalProp != null)
                                         totalLanguages = Convert.ToInt32(totalProp.GetValue(result) ?? 0);
                                 }
                             }
                         }
-                        catch { /* ignore; fallback next */ }
+                        catch {  }
                     }
                 }
             }
         }
-
-        // Fallback to v13: ILocalizationService.GetAllLanguages()
+        
         if (totalLanguages == 0)
         {
             var locServiceType = Type.GetType("Umbraco.Cms.Core.Services.ILocalizationService, Umbraco.Cms.Core");
@@ -409,21 +382,19 @@ public class CountThingsController : ControllerBase
                         var langs = getAllLangs.Invoke(locService, null) as System.Collections.IEnumerable;
                         if (langs != null) totalLanguages = langs.Cast<object>().Count();
                     }
-                    catch { /* ignore; final DB fallback below */ }
+                    catch { }
                 }
             }
         }
-
-        // Final DB fallback (stable across versions)
+        
         if (totalLanguages == 0)
         {
             try
             {
                 totalLanguages = umbScope.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoLanguage");
             }
-            catch { /* leave 0 if something is really off */ }
-        }
-        // ----------------------------------------
+            catch { }
+        }        
 
         var totalSchema = totalDocTypes + totalTemplates + totalPartials + totalScripts +
                           totalStylesheets + totalMediaTypes + totalMemberTypes +
@@ -445,47 +416,39 @@ public class CountThingsController : ControllerBase
     }
 
 
-
-
-
     [HttpGet("forms")]
     public IActionResult GetFormsCount()
-    {
-        // A) Is Forms installed? (assembly check only)
+    {        
         var hasFormsAssembly = AppDomain.CurrentDomain
             .GetAssemblies()
             .Any(a => a.GetName().Name.Equals("Umbraco.Forms.Core", StringComparison.OrdinalIgnoreCase));
 
         if (!hasFormsAssembly)
             return Ok(new { installed = false, total = 0, entries = 0 });
-
-        // B) Types (no compile-time refs)
+        
         var formRepoType = Type.GetType("Umbraco.Forms.Core.Persistence.Repositories.IFormRepository, Umbraco.Forms.Core");
         var recordReaderType = Type.GetType("Umbraco.Forms.Core.Services.IRecordReaderService, Umbraco.Forms.Core");
 
-        // C) Create an Umbraco DB scope AND a DI scope (critical: repo is scoped)
         using var umbScope = _scopeProvider.CreateScope(autoComplete: true);
 
         var root = StaticServiceProvider.Instance;
         var scopeFactory = root.GetService(typeof(IServiceScopeFactory)) as IServiceScopeFactory;
         using var diScope = scopeFactory?.CreateScope();
-        var sp = diScope?.ServiceProvider ?? root; // fall back to root if needed
+        var sp = diScope?.ServiceProvider ?? root; 
 
         object formRepo = formRepoType != null ? sp.GetService(formRepoType) : null;
         object recordReader = recordReaderType != null ? sp.GetService(recordReaderType) : null;
 
         int formCount = 0;
         long entryCount = 0;
-
-        // D) Try repository first (reflection)
+       
         if (formRepo != null)
         {
             var getMany = formRepoType.GetMethod("GetMany", Type.EmptyTypes);
             var formsObj = getMany?.Invoke(formRepo, null) as System.Collections.IEnumerable;
             var forms = formsObj?.Cast<object>().ToList() ?? new List<object>();
             formCount = forms.Count;
-
-            // Sum entries with IRecordReaderService if available (still paged)
+            
             if (recordReader != null)
             {
                 var readerMethod = recordReaderType.GetMethod(
@@ -495,8 +458,7 @@ public class CountThingsController : ControllerBase
                 foreach (var formEntity in forms)
                 {
                     if (formEntity is null) continue;
-
-                    // v14+ uses 'Key'; keep some aliases just in case
+                    
                     var keyProp = formEntity.GetType().GetProperty("Key")
                               ?? formEntity.GetType().GetProperty("Id")
                               ?? formEntity.GetType().GetProperty("UniqueId");
@@ -512,27 +474,24 @@ public class CountThingsController : ControllerBase
                                 entryCount += Convert.ToInt64(totalItemsProp.GetValue(pageObj) ?? 0L);
                         }
                         catch
-                        {
-                            // ignore; we'll fall back to SQL below
+                        {                            
                         }
                     }
                 }
             }
         }
 
-        // E) DB fallbacks (version-proof)
-        //    - Number of forms
+        
         if (formCount == 0)
         {
             try { formCount = Convert.ToInt32(umbScope.Database.ExecuteScalar<long>("SELECT COUNT(*) FROM UFForms")); }
-            catch { /* leave 0 */ }
+            catch {  }
         }
 
-        //    - Total entries across all forms
         if (entryCount == 0 && formCount > 0)
         {
             try { entryCount = umbScope.Database.ExecuteScalar<long>("SELECT COUNT(*) FROM UFRecords"); }
-            catch { /* leave 0 */ }
+            catch {  }
         }
 
         return Ok(new { installed = true, total = formCount, entries = entryCount });

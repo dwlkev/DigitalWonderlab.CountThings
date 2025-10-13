@@ -24,7 +24,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         this.afterTemplateLoaded();
         this.loadStoredCounts();
 
-        // Load ConfettiJS dynamically if not already included
         if (!window.confetti) {
             const script = document.createElement("script");
             script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
@@ -39,7 +38,7 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             confetti({
                 particleCount: 100,
                 spread: 70,
-                origin: { y: 0.6 } // Adjust origin to appear more natural
+                origin: { y: 0.6 }
             });
         }
     }
@@ -60,7 +59,7 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         this.shadowRoot.getElementById("countUsers").addEventListener("click", () => this.fetchCount("users"));
         this.shadowRoot.getElementById("countSchema").addEventListener("click", () => this.fetchCount("schema"));
         this.shadowRoot.getElementById("countAll").addEventListener("click", () => this.fetchAllCounts());
-        this.shadowRoot.getElementById("clearStorage").addEventListener("click", () => this.clearStorage()); //  Added Clear Storage
+        this.shadowRoot.getElementById("clearStorage").addEventListener("click", () => this.clearStorage()); 
         this.shadowRoot.getElementById("countForms").addEventListener("click", () => this.fetchCount("forms"));
 
         this.consumeContext(UMB_NOTIFICATION_CONTEXT, (instance) => {
@@ -68,7 +67,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         });
     }
 
-    /** Clears local storage and resets UI */
     clearStorage() {
         localStorage.clear();
         this.loadStoredCounts();
@@ -78,7 +76,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         });
     }
 
-    /** Set a badge's text and optional color (danger|warning|success|primary|...); pass null to clear color */
     setBadge(id, text, color = null) {
         const el = this.shadowRoot.getElementById(id);
         if (!el) return;
@@ -139,7 +136,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             }
         });
 
-        // Restore file type counts dynamically
         const fileTypesContainer = this.shadowRoot.getElementById("media-filetypes-container");
         if (fileTypesContainer) {
             fileTypesContainer.innerHTML = "";
@@ -158,7 +154,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
 
 
 
-    /** Fetch and update a specific count with a loading state */
     async fetchCount(type) {
         const idMap = {
             content: {
@@ -204,7 +199,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         };
 
         try {
-            // set loading spinners (red while loading)
             Object.values(idMap[type]).forEach((elementId) => {
                 const el = this.shadowRoot.getElementById(elementId);
                 if (el) {
@@ -216,7 +210,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             const response = await fetch(`/umbraco/api/countthings/${type}`);
             const data = await response.json();
 
-            // Special handling for Forms not installed
             if (type === "forms" && data && data.installed === false) {
                 ["forms-count", "forms-entries-count"].forEach((id) => {
                     this.setBadge(id, "Not installed", "warning");
@@ -226,15 +219,13 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
                 this.#notificationContext?.peek("warning", {
                     data: { headline: "Umbraco Forms not installed", message: "Forms counts are unavailable." },
                 });
-                return; // stop normal mapping for forms
+                return; 
             }
 
-            // Normal mapping
             Object.entries(data).forEach(([key, value]) => {
                 const elementId = idMap[type][key];
                 if (!elementId) return;
 
-                // persist + set badge color
                 localStorage.setItem(elementId, value);
 
                 if (!value || value === "0") {
@@ -244,7 +235,6 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
                 }
             });
 
-            // Handle media file types dynamically
             if (type === "media" && data.fileTypes) {
                 this.updateFileTypeCounts(data.fileTypes);
             }
@@ -263,39 +253,33 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
 
 
 
-    /** Dynamically update file type counts */
     updateFileTypeCounts(fileTypes) {
         const fileTypesContainer = this.shadowRoot.getElementById("media-filetypes-container");
-        fileTypesContainer.innerHTML = ""; // Clear previous file type entries
+        fileTypesContainer.innerHTML = ""; 
 
         Object.entries(fileTypes).forEach(([fileType, count]) => {
             const card = document.createElement("uui-card");
             card.classList.add("subcount-card");
             card.innerHTML = `${fileType.toUpperCase()} <uui-badge>${count}</uui-badge>`;
             fileTypesContainer.appendChild(card);
-
-            // Store in local storage
+            
             localStorage.setItem(`media-filetype-${fileType}`, count);
         });
     }
 
 
-    /** Fetch and update all counts, but only show one notification at the end */
     async fetchAllCounts() {
         const types = ["content", "media", "users", "schema", "forms"];
 
-        // Disable notifications temporarily
         const originalNotificationContext = this.#notificationContext;
         this.#notificationContext = null;
 
         let formsInstalled = true;
 
-        // Fetch all counts
         for (const type of types) {
             try {
                 const result = await this.fetchCount(type);
 
-                // fetchCount already handles setting badges, but we can detect the forms case here too
                 if (type === "forms" && result && result.installed === false) {
                     formsInstalled = false;
                 }
@@ -304,10 +288,8 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             }
         }
 
-        // Restore notification context
         this.#notificationContext = originalNotificationContext;
 
-        // Show only one notification at the end
         if (formsInstalled) {
             this.#notificationContext?.peek("positive", {
                 data: {

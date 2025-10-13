@@ -11,7 +11,7 @@
             s.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
             s.async = true;
             s.onload = function () { resolve(); };
-            s.onerror = function () { console.warn("Confetti failed to load"); resolve(); }; // soft-fail
+            s.onerror = function () { console.warn("Confetti failed to load"); resolve(); }; 
             document.head.appendChild(s);
         });
 
@@ -27,8 +27,7 @@
         });
     }
 
-    function init(root) {
-        // helpers scoped to the dashboard root
+    function init(root) {        
         var q = function (sel) { return root.querySelector(sel); };
         var byId = function (id) { return root.querySelector("#" + id); };
 
@@ -179,7 +178,6 @@
             fireConfetti();
         }
 
-        // initial state + wiring
         loadStoredCounts();
         byId("countAll")?.addEventListener("click", fetchAll);
         byId("clearStorage")?.addEventListener("click", function () {
@@ -193,6 +191,5 @@
         byId("countForms")?.addEventListener("click", function () { fetchCount("forms"); });
     }
 
-    // export
     w.CountThingsV13 = { init: init };
 })(window);
