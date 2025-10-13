@@ -12,8 +12,8 @@
 		<Company>Digital Wonderlab</Company>
 		<Description>Count Things dashboard for Umbraco 13 - 16.</Description>
 		<PackageTags>umbraco;umbraco-cms;dashboard</PackageTags>
-		<!--<RepositoryUrl></RepositoryUrl>-->
-		<!--<PackageProjectUrl></PackageProjectUrl>-->
+		<RepositoryUrl>https://github.com/dwlkev/DigitalWonderlab.CountThings</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/dwlkev/DigitalWonderlab.CountThings</PackageProjectUrl>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>icon.png</PackageIcon>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>

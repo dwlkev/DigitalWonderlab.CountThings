@@ -13,6 +13,7 @@
     "SyncContributorsFromRepository": false
   },
   "Category": "Analytics & Insights",
+  "IssueTrackerUrl": "https://github.com/dwlkev/DigitalWonderlab.CountThings/issues",
   "Description": "A friendly Umbraco backoffice dashboard that shows counts of content, media, users, schema, forms and more.",
   "LicenseTypes": [ "Free" ],
   "PackageType": "Package",

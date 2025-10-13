@@ -19,5 +19,8 @@ A friendly Umbraco backoffice dashboard that shows counts of content, media, use
 - Go to Settings and click the Count Things tab
 - Counts are stored in local storage for faster loading.
 
+## Issues / Suggestions
+- To report an issue or suggest a new count or feature to be added please use the GitHub issue tracker - https://github.com/dwlkev/DigitalWonderlab.CountThings/issues
+
 ## Screenshots
 ![Dashboard](https://i.postimg.cc/Pxyx6M1y/ct-ss1.png)
