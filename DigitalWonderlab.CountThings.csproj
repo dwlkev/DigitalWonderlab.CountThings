@@ -6,7 +6,7 @@
 		<!-- NuGet metadata -->
 		<IsPackable>true</IsPackable>
 		<PackageId>DigitalWonderlab.CountThings</PackageId>
-		<Version>1.1.4</Version>
+		<Version>1.1.5</Version>
 		<!-- Bump for reinstall -->
 		<Authors>Digital Wonderlab</Authors>
 		<Company>Digital Wonderlab</Company>
@@ -26,15 +26,15 @@
 
 	<!-- Dependencies (keep your existing) -->
 	<ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
-		<PackageReference Include="Umbraco.Cms.Core" Version="[13.0.0,15.0.0)" PrivateAssets="all" />
-		<PackageReference Include="Umbraco.Cms.Web.Common" Version="[13.0.0,15.0.0)" PrivateAssets="all" />
-		<PackageReference Include="Umbraco.Cms.Infrastructure" Version="[13.0.0,15.0.0)" PrivateAssets="all" />
+		<PackageReference Include="Umbraco.Cms.Core" Version="[13.0.0,15.0.0)" />
+		<PackageReference Include="Umbraco.Cms.Web.Common" Version="[13.0.0,15.0.0)"  />
+		<PackageReference Include="Umbraco.Cms.Infrastructure" Version="[13.0.0,15.0.0)"  />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-		<PackageReference Include="Umbraco.Cms.Core" Version="[15.0.0,17.0.0)" PrivateAssets="all" />
-		<PackageReference Include="Umbraco.Cms.Web.Common" Version="[15.0.0,17.0.0)" PrivateAssets="all" />
-		<PackageReference Include="Umbraco.Cms.Infrastructure" Version="[15.0.0,17.0.0)" PrivateAssets="all" />
+		<PackageReference Include="Umbraco.Cms.Core" Version="[15.0.0,17.0.0)"  />
+		<PackageReference Include="Umbraco.Cms.Web.Common" Version="[15.0.0,17.0.0)"  />
+		<PackageReference Include="Umbraco.Cms.Infrastructure" Version="[15.0.0,17.0.0)"  />
 	</ItemGroup>
 
 	<ItemGroup>

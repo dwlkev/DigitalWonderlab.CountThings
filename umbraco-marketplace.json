@@ -23,5 +23,6 @@
     }
   ],
   "Tags": [ "Analytics & Insights", "Developer Tools", "Editor Tools" ],
-  "Title": "Count Things!"
+  "Title": "Count Things!",
+  "VersionDependencyMode": "SemVer"
 }
