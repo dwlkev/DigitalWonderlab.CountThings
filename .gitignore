@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/reinstall-test-sites.sh
+/.claude/settings.local.json
+/publish-nuget.sh
