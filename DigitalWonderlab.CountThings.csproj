@@ -1,16 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
 		<Nullable>enable</Nullable>
 		<!-- NuGet metadata -->
 		<IsPackable>true</IsPackable>
 		<PackageId>DigitalWonderlab.CountThings</PackageId>
-		<Version>1.1.5</Version>
+		<Version>1.2.0</Version>
 		<!-- Bump for reinstall -->
 		<Authors>Digital Wonderlab</Authors>
 		<Company>Digital Wonderlab</Company>
-		<Description>Count Things dashboard for Umbraco 13 - 16.</Description>
+		<Description>Count Things dashboard for Umbraco 13 - 17.</Description>
 		<PackageTags>umbraco;umbraco-cms;dashboard;umbraco-marketplace</PackageTags>
 		<RepositoryUrl>https://github.com/dwlkev/DigitalWonderlab.CountThings</RepositoryUrl>
 		<PackageProjectUrl>https://github.com/dwlkev/DigitalWonderlab.CountThings</PackageProjectUrl>
@@ -21,7 +21,7 @@
 		<!-- Key for Umbraco App_Plugins packing -->
 		<ContentTargetFolders>content</ContentTargetFolders>
 		<IncludeBuildOutput>true</IncludeBuildOutput>
-		
+
 	</PropertyGroup>
 
 	<!-- Dependencies (keep your existing) -->
@@ -37,9 +37,12 @@
 		<PackageReference Include="Umbraco.Cms.Infrastructure" Version="[15.0.0,17.0.0)"  />
 	</ItemGroup>
 
-	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" PrivateAssets="all" />
+	<ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+		<PackageReference Include="Umbraco.Cms.Core" Version="[17.0.0,18.0.0)" />
+		<PackageReference Include="Umbraco.Cms.Web.Common" Version="[17.0.0,18.0.0)" />
+		<PackageReference Include="Umbraco.Cms.Infrastructure" Version="[17.0.0,18.0.0)" />
 	</ItemGroup>
+
 
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />

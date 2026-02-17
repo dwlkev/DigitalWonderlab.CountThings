@@ -10,9 +10,10 @@ A friendly Umbraco backoffice dashboard that shows counts of content, media, use
 - Counts Umbraco Forms (forms + entries)  
 
 ## Compatibility
-- ✅ Umbraco 13, 14, 15, 16  
+- ✅ Umbraco 13, 14, 15, 16, 17
 - ✅ .NET 8.0
 - ✅ .NET 9.0
+- ✅ .NET 10.0
 
 ## Installation
 - Install via Nuget https://www.nuget.org/packages/DigitalWonderlab.CountThings/latest

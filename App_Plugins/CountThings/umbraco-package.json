@@ -1,13 +1,14 @@
 {
   "$schema": "../../umbraco-package-schema.json",
   "name": "CountThings",
-  "version": "1.1.5",
+  "version": "1.2.0",
   "extensions": [
     {
       "type": "dashboard",
       "alias": "countThingsDashboard",
       "name": "Count Things Dashboard",
       "js": "/App_Plugins/CountThings/count-things.js",
+      "elementName": "count-things-dashboard",
       "weight": 10,
       "meta": {
         "label": "Count Things",
