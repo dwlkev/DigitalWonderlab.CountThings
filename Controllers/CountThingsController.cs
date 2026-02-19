@@ -172,7 +172,8 @@ public class CountThingsController : ControllerBase
             fileTypes[row.Extension] = (int)row.Cnt;
 
         // Query D — Large files (>2MB, non-folders)
-        // umbracoBytes is stored in varcharValue (not intValue) in SQLite-based Umbraco installs
+        // umbracoBytes uses Label (bigint) which stores in varcharValue on all DB providers
+        // (intValue is 32-bit int, too small for file sizes, so Umbraco uses Nvarchar storage)
         var largeFiles = db.ExecuteScalar<int>(@"
             SELECT COUNT(*)
             FROM umbracoNode n
