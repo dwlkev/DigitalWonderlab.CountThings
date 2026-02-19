@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Umbraco.Cms.Core.DependencyInjection; 
+using Umbraco.Cms.Core.DependencyInjection;
 using Umbraco.Cms.Core.Models.Membership;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Infrastructure.Scoping;
@@ -15,22 +15,16 @@ using Umbraco.Cms.Infrastructure.Scoping;
 [Route("umbraco/api/countthings")]
 public class CountThingsController : ControllerBase
 {
-    private readonly IContentService _contentService;
-    private readonly IMediaService _mediaService;
     private readonly IUserService _userService;
     private readonly IContentTypeService _contentTypeService;
     private readonly IFileService _fileService;
-    //private readonly ILanguageService _languageService;
     private readonly IDataTypeService _dataTypeService;
     private readonly IMemberService _memberService;
     private readonly IMediaTypeService _mediaTypeService;
     private readonly IMemberTypeService _memberTypeService;
-    //private readonly ILocalizationService _localizationService;
     private readonly IScopeProvider _scopeProvider;
 
     public CountThingsController(
-        IContentService contentService,
-        IMediaService mediaService,
         IUserService userService,
         IContentTypeService contentTypeService,
         IFileService fileService,
@@ -38,11 +32,8 @@ public class CountThingsController : ControllerBase
         IMemberTypeService memberTypeService,
         IMemberService memberService,
         IDataTypeService dataTypeService,
-        //ILocalizationService localizationService,
         IScopeProvider scopeProvider)
     {
-        _contentService = contentService;
-        _mediaService = mediaService;
         _userService = userService;
         _contentTypeService = contentTypeService;
         _fileService = fileService;
@@ -50,32 +41,48 @@ public class CountThingsController : ControllerBase
         _memberTypeService = memberTypeService;
         _memberService = memberService;
         _dataTypeService = dataTypeService;
-        //_localizationService = localizationService;
         _scopeProvider = scopeProvider;
     }
 
     [HttpGet("content")]
     public IActionResult GetContentCount()
     {
-        var allContent = _contentService.GetPagedDescendants(-1, 0, int.MaxValue, out _).ToList();
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
 
-        var trashedCount = allContent.Count(c => c.Trashed);
-        var publishedCount = allContent.Count(c => c.Published && !c.Trashed);
-        var unpublishedCount = allContent.Count(c => !c.Published && !c.Trashed);
+        var counts = db.Fetch<dynamic>(@"
+            SELECT
+                COUNT(*) AS Total,
+                SUM(CASE WHEN d.published = 1 AND n.trashed = 0 THEN 1 ELSE 0 END) AS Published,
+                SUM(CASE WHEN d.published = 0 AND n.trashed = 0 THEN 1 ELSE 0 END) AS Unpublished,
+                SUM(CASE WHEN n.trashed = 1 THEN 1 ELSE 0 END) AS Trashed
+            FROM umbracoDocument d
+            INNER JOIN umbracoNode n ON d.nodeId = n.id").First();
 
-        int redirectCount;
-        using (var scope = _scopeProvider.CreateScope())
-        {
-            redirectCount = scope.Database.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoRedirectUrl");
-        }
+        var redirectCount = db.ExecuteScalar<int>("SELECT COUNT(*) FROM umbracoRedirectUrl");
+
+        var doctypeRows = db.Fetch<dynamic>(@"
+            SELECT ct.alias AS Alias, COUNT(*) AS Cnt
+            FROM umbracoDocument d
+            INNER JOIN umbracoNode n ON d.nodeId = n.id
+            INNER JOIN umbracoContent c ON d.nodeId = c.nodeId
+            INNER JOIN cmsContentType ct ON c.contentTypeId = ct.nodeId
+            WHERE n.trashed = 0
+            GROUP BY ct.alias
+            ORDER BY ct.alias");
+
+        var contentTypes = new Dictionary<string, int>();
+        foreach (var row in doctypeRows)
+            contentTypes[row.Alias] = (int)row.Cnt;
 
         return Ok(new
         {
-            total = allContent.Count, 
-            published = publishedCount,
-            unpublished = unpublishedCount,
-            trashed = trashedCount,
-            redirects = redirectCount
+            total = (int)counts.Total,
+            published = (int)counts.Published,
+            unpublished = (int)counts.Unpublished,
+            trashed = (int)counts.Trashed,
+            redirects = redirectCount,
+            contentTypes
         });
     }
 
@@ -85,77 +92,125 @@ public class CountThingsController : ControllerBase
     [HttpGet("media")]
     public IActionResult GetMediaCount()
     {
-        var totalMedia = _mediaService.Count();
-        var allMediaItems = _mediaService.GetPagedDescendants(-1, 0, int.MaxValue, out _).ToList();
+        var mediaGuid = new Guid("B796F64C-1F99-4FFB-B886-4BF4BC011A9C");
 
-        var folders = allMediaItems.Count(m => m.ContentType.Alias == "Folder");
+        using var scope = _scopeProvider.CreateScope(autoComplete: true);
+        var db = scope.Database;
 
+        // Query A — Media type breakdown (gives total + folders + mediaTypes dict)
+        var mediaTypeRows = db.Fetch<dynamic>(@"
+            SELECT ct.alias AS Alias, COUNT(*) AS Cnt
+            FROM umbracoNode n
+            INNER JOIN umbracoContent c ON n.id = c.nodeId
+            INNER JOIN cmsContentType ct ON c.contentTypeId = ct.nodeId
+            WHERE n.nodeObjectType = @0
+            GROUP BY ct.alias", mediaGuid);
+
+        int total = 0, folders = 0;
+        var mediaTypes = new Dictionary<string, int>();
+        foreach (var row in mediaTypeRows)
+        {
+            string alias = row.Alias;
+            int cnt = (int)row.Cnt;
+            total += cnt;
+            if (alias == "Folder") folders = cnt;
+            mediaTypes[alias] = cnt;
+        }
+
+        // Query B — Category counts (images/videos/audios/other)
         var imageAliases = new HashSet<string> { "Image", "umbracoMediaVectorGraphics" };
         var imageExtensions = new HashSet<string> { "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp" };
-
-        var images = allMediaItems.Count(m =>
-            imageAliases.Contains(m.ContentType.Alias) ||
-            (m.HasProperty("umbracoExtension") &&
-             imageExtensions.Contains((m.GetValue<string>("umbracoExtension") ?? "")
-                 .Trim().TrimStart('.').ToLowerInvariant()))
-        );
-
         var videoAliases = new HashSet<string> { "umbracoMediaVideo" };
         var videoExtensions = new HashSet<string> { "mp4", "mov", "avi", "wmv", "mkv", "mpeg", "mpg", "webm" };
-
-        var videos = allMediaItems.Count(m =>
-            videoAliases.Contains(m.ContentType.Alias) ||
-            (m.HasProperty("umbracoExtension") &&
-             videoExtensions.Contains((m.GetValue<string>("umbracoExtension") ?? "")
-                 .Trim().TrimStart('.').ToLowerInvariant()))
-        );
-
         var audioAliases = new HashSet<string> { "umbracoMediaAudio" };
         var audioExtensions = new HashSet<string> { "mp3", "wav", "ogg", "flac", "aac", "m4a" };
 
-        var audios = allMediaItems.Count(m =>
-            audioAliases.Contains(m.ContentType.Alias) ||
-            (m.HasProperty("umbracoExtension") &&
-             audioExtensions.Contains((m.GetValue<string>("umbracoExtension") ?? "")
-                 .Trim().TrimStart('.').ToLowerInvariant()))
-        );
+        var categoryRows = db.Fetch<dynamic>(@"
+            SELECT ct.alias AS MediaType,
+                LOWER(LTRIM(RTRIM(COALESCE(pd.varcharValue, '')))) AS Extension,
+                COUNT(*) AS Cnt
+            FROM umbracoNode n
+            INNER JOIN umbracoContent c ON n.id = c.nodeId
+            INNER JOIN cmsContentType ct ON c.contentTypeId = ct.nodeId
+            INNER JOIN umbracoContentVersion cv ON n.id = cv.nodeId AND cv.[current] = 1
+            LEFT JOIN umbracoPropertyData pd ON cv.id = pd.versionId
+                AND pd.propertyTypeId IN (SELECT id FROM cmsPropertyType WHERE alias = 'umbracoExtension')
+            WHERE n.nodeObjectType = @0 AND ct.alias <> 'Folder'
+            GROUP BY ct.alias, LOWER(LTRIM(RTRIM(COALESCE(pd.varcharValue, ''))))", mediaGuid);
 
-        var largeFiles = allMediaItems
-            .Where(m => m.HasProperty("umbracoBytes")
-                     && m.GetValue<int>("umbracoBytes") > 2_097_152
-                     && m.ContentType.Alias != "Folder")
-            .Count();
+        int images = 0, videos = 0, audios = 0, other = 0;
+        foreach (var row in categoryRows)
+        {
+            string alias = row.MediaType;
+            string ext = row.Extension;
+            int cnt = (int)row.Cnt;
 
-        var otherFilesCount = allMediaItems.Count(m =>
-            !imageAliases.Contains(m.ContentType.Alias) &&
-            !videoAliases.Contains(m.ContentType.Alias) &&
-            !audioAliases.Contains(m.ContentType.Alias) &&
-            m.ContentType.Alias != "Folder"
-        );
+            if (imageAliases.Contains(alias) || imageExtensions.Contains(ext))
+                images += cnt;
+            else if (videoAliases.Contains(alias) || videoExtensions.Contains(ext))
+                videos += cnt;
+            else if (audioAliases.Contains(alias) || audioExtensions.Contains(ext))
+                audios += cnt;
+            else
+                other += cnt;
+        }
 
-        var fileTypeCounts = allMediaItems
-            .Where(m => m.HasProperty("umbracoExtension"))
-            .Select(m => m.GetValue<string>("umbracoExtension"))
-            .Select(ext => string.IsNullOrWhiteSpace(ext)
-                ? "_unknown"
-                : ext.Trim().TrimStart('.').ToLowerInvariant())
-            .GroupBy(ext => ext)
-            .ToDictionary(g => g.Key, g => g.Count());
+        // Query C — File type breakdown
+        var fileTypeRows = db.Fetch<dynamic>(@"
+            SELECT LOWER(LTRIM(RTRIM(pd.varcharValue))) AS Extension, COUNT(*) AS Cnt
+            FROM umbracoNode n
+            INNER JOIN umbracoContentVersion cv ON n.id = cv.nodeId AND cv.[current] = 1
+            INNER JOIN umbracoPropertyData pd ON cv.id = pd.versionId
+            INNER JOIN cmsPropertyType pt ON pd.propertyTypeId = pt.id
+            WHERE n.nodeObjectType = @0
+              AND pt.alias = 'umbracoExtension'
+              AND pd.varcharValue IS NOT NULL AND LTRIM(RTRIM(pd.varcharValue)) <> ''
+            GROUP BY LOWER(LTRIM(RTRIM(pd.varcharValue)))", mediaGuid);
 
-        var filteredFileTypeCounts = fileTypeCounts
-            .Where(kvp => kvp.Key != "_unknown")
-            .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+        var fileTypes = new Dictionary<string, int>();
+        foreach (var row in fileTypeRows)
+            fileTypes[row.Extension] = (int)row.Cnt;
+
+        // Query D — Large files (>2MB, non-folders)
+        // umbracoBytes uses Label (bigint) which stores in varcharValue on all DB providers
+        // (intValue is 32-bit int, too small for file sizes, so Umbraco uses Nvarchar storage)
+        var largeFiles = db.ExecuteScalar<int>(@"
+            SELECT COUNT(*)
+            FROM umbracoNode n
+            INNER JOIN umbracoContent c ON n.id = c.nodeId
+            INNER JOIN cmsContentType ct ON c.contentTypeId = ct.nodeId
+            INNER JOIN umbracoContentVersion cv ON n.id = cv.nodeId AND cv.[current] = 1
+            INNER JOIN umbracoPropertyData pd ON cv.id = pd.versionId
+            INNER JOIN cmsPropertyType pt ON pd.propertyTypeId = pt.id
+            WHERE n.nodeObjectType = @0
+              AND pt.alias = 'umbracoBytes'
+              AND pd.varcharValue IS NOT NULL AND pd.varcharValue <> ''
+              AND CAST(pd.varcharValue AS BIGINT) > 2097152
+              AND ct.alias <> 'Folder'", mediaGuid);
+
+        // Query E — Total storage size
+        var totalSize = db.ExecuteScalar<long>(@"
+            SELECT COALESCE(SUM(CAST(pd.varcharValue AS BIGINT)), 0)
+            FROM umbracoNode n
+            INNER JOIN umbracoContentVersion cv ON n.id = cv.nodeId AND cv.[current] = 1
+            INNER JOIN umbracoPropertyData pd ON cv.id = pd.versionId
+            INNER JOIN cmsPropertyType pt ON pd.propertyTypeId = pt.id
+            WHERE n.nodeObjectType = @0
+              AND pt.alias = 'umbracoBytes'
+              AND pd.varcharValue IS NOT NULL AND pd.varcharValue <> ''", mediaGuid);
 
         return Ok(new
         {
-            total = totalMedia,
+            total,
             folders,
             images,
             videos,
             audios,
             largeFiles,
-            other = otherFilesCount,
-            fileTypes = filteredFileTypeCounts
+            other,
+            fileTypes,
+            mediaTypes,
+            totalSize
         });
     }
 

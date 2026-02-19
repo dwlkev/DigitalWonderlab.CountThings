@@ -12,6 +12,7 @@ const CSV_ROW_MAP = [
     ["Media", "Audios", "media-audios-count"],
     ["Media", "Other Files", "media-other-files-count"],
     ["Media", "Large Files (>2MB)", "media-large-files-count"],
+    ["Media", "Total Size", "media-total-size-count"],
     ["Users", "Active Users", "users-active-count"],
     ["Users", "Locked Users", "users-locked-count"],
     ["Users", "User Groups", "users-groups-count"],
@@ -131,6 +132,7 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             "media-audios-count",
             "media-large-files-count",
             "media-other-files-count",
+            "media-total-size-count",
             "users-total-count",
             "users-active-count",
             "users-locked-count",
@@ -180,6 +182,36 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
                 }
             });
         }
+
+        const doctypesContainer = this.shadowRoot.getElementById("content-doctypes-container");
+        if (doctypesContainer) {
+            doctypesContainer.innerHTML = "";
+            Object.keys(localStorage).sort().forEach((key) => {
+                if (key.startsWith("content-doctype-")) {
+                    const alias = key.replace("content-doctype-", "");
+                    const count = localStorage.getItem(key);
+                    const card = document.createElement("uui-card");
+                    card.classList.add("subcount-card");
+                    card.innerHTML = `${alias} <uui-badge>${count}</uui-badge>`;
+                    doctypesContainer.appendChild(card);
+                }
+            });
+        }
+
+        const mediaTypesContainer = this.shadowRoot.getElementById("media-mediatypes-container");
+        if (mediaTypesContainer) {
+            mediaTypesContainer.innerHTML = "";
+            Object.keys(localStorage).sort().forEach((key) => {
+                if (key.startsWith("media-mediatype-")) {
+                    const alias = key.replace("media-mediatype-", "");
+                    const count = localStorage.getItem(key);
+                    const card = document.createElement("uui-card");
+                    card.classList.add("subcount-card");
+                    card.innerHTML = `${alias} <uui-badge>${count}</uui-badge>`;
+                    mediaTypesContainer.appendChild(card);
+                }
+            });
+        }
     }
 
 
@@ -200,7 +232,8 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
                 videos: "media-videos-count",
                 audios: "media-audios-count",
                 largeFiles: "media-large-files-count",
-                other: "media-other-files-count"
+                other: "media-other-files-count",
+                totalSize: "media-total-size-count"
             },
             users: {
                 total: "users-total-count",
@@ -265,8 +298,22 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
                 }
             });
 
-            if (type === "media" && data.fileTypes) {
-                this.updateFileTypeCounts(data.fileTypes);
+            if (type === "content" && data.contentTypes) {
+                this.updateContentTypeCounts(data.contentTypes);
+            }
+
+            if (type === "media") {
+                if (data.totalSize !== undefined) {
+                    const formatted = this.formatBytes(data.totalSize);
+                    this.setBadge("media-total-size-count", formatted, null);
+                    localStorage.setItem("media-total-size-count", formatted);
+                }
+                if (data.fileTypes) {
+                    this.updateFileTypeCounts(data.fileTypes);
+                }
+                if (data.mediaTypes) {
+                    this.updateMediaTypeCounts(data.mediaTypes);
+                }
             }
 
             this.#notificationContext?.peek("positive", {
@@ -285,16 +332,52 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
 
     updateFileTypeCounts(fileTypes) {
         const fileTypesContainer = this.shadowRoot.getElementById("media-filetypes-container");
-        fileTypesContainer.innerHTML = ""; 
+        fileTypesContainer.innerHTML = "";
 
         Object.entries(fileTypes).forEach(([fileType, count]) => {
             const card = document.createElement("uui-card");
             card.classList.add("subcount-card");
             card.innerHTML = `${fileType.toUpperCase()} <uui-badge>${count}</uui-badge>`;
             fileTypesContainer.appendChild(card);
-            
+
             localStorage.setItem(`media-filetype-${fileType}`, count);
         });
+    }
+
+    updateContentTypeCounts(contentTypes) {
+        const container = this.shadowRoot.getElementById("content-doctypes-container");
+        if (!container) return;
+        container.innerHTML = "";
+
+        Object.entries(contentTypes).forEach(([alias, count]) => {
+            const card = document.createElement("uui-card");
+            card.classList.add("subcount-card");
+            card.innerHTML = `${alias} <uui-badge>${count}</uui-badge>`;
+            container.appendChild(card);
+            localStorage.setItem(`content-doctype-${alias}`, count);
+        });
+    }
+
+    updateMediaTypeCounts(mediaTypes) {
+        const container = this.shadowRoot.getElementById("media-mediatypes-container");
+        if (!container) return;
+        container.innerHTML = "";
+
+        Object.entries(mediaTypes).forEach(([alias, count]) => {
+            const card = document.createElement("uui-card");
+            card.classList.add("subcount-card");
+            card.innerHTML = `${alias} <uui-badge>${count}</uui-badge>`;
+            container.appendChild(card);
+            localStorage.setItem(`media-mediatype-${alias}`, count);
+        });
+    }
+
+    formatBytes(bytes) {
+        if (bytes === 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB", "TB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const value = bytes / Math.pow(1024, i);
+        return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
     }
 
 
@@ -317,10 +400,26 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         }
 
         Object.keys(localStorage).sort().forEach((key) => {
+            if (key.startsWith("content-doctype-")) {
+                hasData = true;
+                const alias = key.replace("content-doctype-", "");
+                rows.push(["Content (Document Type)", alias, localStorage.getItem(key)]);
+            }
+        });
+
+        Object.keys(localStorage).sort().forEach((key) => {
             if (key.startsWith("media-filetype-")) {
                 hasData = true;
                 const ext = key.replace("media-filetype-", "").toUpperCase();
                 rows.push(["Media (File Type)", ext, localStorage.getItem(key)]);
+            }
+        });
+
+        Object.keys(localStorage).sort().forEach((key) => {
+            if (key.startsWith("media-mediatype-")) {
+                hasData = true;
+                const alias = key.replace("media-mediatype-", "");
+                rows.push(["Media (Media Type)", alias, localStorage.getItem(key)]);
             }
         });
 
