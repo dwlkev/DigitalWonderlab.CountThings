@@ -42,6 +42,7 @@
             ["Media", "Audios", "media-audios-count"],
             ["Media", "Other Files", "media-other-files-count"],
             ["Media", "Large Files (>2MB)", "media-large-files-count"],
+            ["Media", "Total Size", "media-total-size-count"],
             ["Users", "Active Users", "users-active-count"],
             ["Users", "Locked Users", "users-locked-count"],
             ["Users", "User Groups", "users-groups-count"],
@@ -83,7 +84,7 @@
             var keys = [
                 "content-published-count", "content-unpublished-count", "content-trashed-count", "content-redirects-count",
                 "media-folder-count", "media-image-count", "media-videos-count", "media-audios-count",  // <-- NEW
-                "media-other-files-count", "media-large-files-count",
+                "media-other-files-count", "media-large-files-count", "media-total-size-count",
                 "users-active-count", "users-locked-count", "users-groups-count", "users-members-count", "users-member-groups-count",
                 "schema-doctypes-count", "schema-templates-count", "schema-partials-count", "schema-scripts-count",
                 "schema-stylesheets-count", "schema-mediatypes-count", "schema-membertypes-count", "schema-datatypes-count",
@@ -112,6 +113,36 @@
                     }
                 });
             }
+
+            var dtCont = byId("content-doctypes-container");
+            if (dtCont) {
+                dtCont.innerHTML = "";
+                Object.keys(localStorage).sort().forEach(function (k) {
+                    if (k.indexOf("content-doctype-") === 0) {
+                        var alias = k.replace("content-doctype-", "");
+                        var count = localStorage.getItem(k);
+                        var card = document.createElement("uui-card");
+                        card.className = "subcount-card";
+                        card.innerHTML = alias + " <uui-badge>" + count + "</uui-badge>";
+                        dtCont.appendChild(card);
+                    }
+                });
+            }
+
+            var mtCont = byId("media-mediatypes-container");
+            if (mtCont) {
+                mtCont.innerHTML = "";
+                Object.keys(localStorage).sort().forEach(function (k) {
+                    if (k.indexOf("media-mediatype-") === 0) {
+                        var alias = k.replace("media-mediatype-", "");
+                        var count = localStorage.getItem(k);
+                        var card = document.createElement("uui-card");
+                        card.className = "subcount-card";
+                        card.innerHTML = alias + " <uui-badge>" + count + "</uui-badge>";
+                        mtCont.appendChild(card);
+                    }
+                });
+            }
         }
 
         function updateFileTypeCounts(fileTypes) {
@@ -128,6 +159,42 @@
             });
         }
 
+        function updateContentTypeCounts(contentTypes) {
+            var cont = byId("content-doctypes-container");
+            if (!cont) return;
+            cont.innerHTML = "";
+            Object.keys(contentTypes).forEach(function (alias) {
+                var count = contentTypes[alias];
+                var card = document.createElement("uui-card");
+                card.className = "subcount-card";
+                card.innerHTML = alias + " <uui-badge>" + count + "</uui-badge>";
+                cont.appendChild(card);
+                localStorage.setItem("content-doctype-" + alias, count);
+            });
+        }
+
+        function updateMediaTypeCounts(mediaTypes) {
+            var cont = byId("media-mediatypes-container");
+            if (!cont) return;
+            cont.innerHTML = "";
+            Object.keys(mediaTypes).forEach(function (alias) {
+                var count = mediaTypes[alias];
+                var card = document.createElement("uui-card");
+                card.className = "subcount-card";
+                card.innerHTML = alias + " <uui-badge>" + count + "</uui-badge>";
+                cont.appendChild(card);
+                localStorage.setItem("media-mediatype-" + alias, count);
+            });
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return "0 B";
+            var units = ["B", "KB", "MB", "GB", "TB"];
+            var i = Math.floor(Math.log(bytes) / Math.log(1024));
+            var value = bytes / Math.pow(1024, i);
+            return value.toFixed(i === 0 ? 0 : 1) + " " + units[i];
+        }
+
         async function fetchCount(type) {
             var idMap = {
                 content: {
@@ -142,7 +209,8 @@
                     videos: "media-videos-count",
                     audios: "media-audios-count",
                     other: "media-other-files-count",
-                    largeFiles: "media-large-files-count"
+                    largeFiles: "media-large-files-count",
+                    totalSize: "media-total-size-count"
                 },
 
                 users: {
@@ -192,7 +260,17 @@
                     else setBadge(elId, String(val), null);
                 });
 
-                if (type === "media" && data.fileTypes) updateFileTypeCounts(data.fileTypes);
+                if (type === "content" && data.contentTypes) updateContentTypeCounts(data.contentTypes);
+
+                if (type === "media") {
+                    if (data.totalSize !== undefined) {
+                        var formatted = formatBytes(data.totalSize);
+                        setBadge("media-total-size-count", formatted, null);
+                        localStorage.setItem("media-total-size-count", formatted);
+                    }
+                    if (data.fileTypes) updateFileTypeCounts(data.fileTypes);
+                    if (data.mediaTypes) updateMediaTypeCounts(data.mediaTypes);
+                }
             } catch (e) {
                 console.error("fetchCount failed for", type, e);
             }
@@ -227,10 +305,26 @@
             });
 
             Object.keys(localStorage).sort().forEach(function (key) {
+                if (key.indexOf("content-doctype-") === 0) {
+                    hasData = true;
+                    var alias = key.replace("content-doctype-", "");
+                    rows.push(["Content (Document Type)", alias, localStorage.getItem(key)]);
+                }
+            });
+
+            Object.keys(localStorage).sort().forEach(function (key) {
                 if (key.indexOf("media-filetype-") === 0) {
                     hasData = true;
                     var ext = key.replace("media-filetype-", "").toUpperCase();
                     rows.push(["Media (File Type)", ext, localStorage.getItem(key)]);
+                }
+            });
+
+            Object.keys(localStorage).sort().forEach(function (key) {
+                if (key.indexOf("media-mediatype-") === 0) {
+                    hasData = true;
+                    var alias = key.replace("media-mediatype-", "");
+                    rows.push(["Media (Media Type)", alias, localStorage.getItem(key)]);
                 }
             });
 

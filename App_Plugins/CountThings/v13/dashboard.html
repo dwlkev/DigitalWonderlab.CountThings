@@ -19,6 +19,10 @@
                 <uui-card class="count-card">Trashed <uui-badge><span id="content-trashed-count">Not counted</span></uui-badge></uui-card>
                 <uui-card class="count-card">Redirects <uui-badge><span id="content-redirects-count">Not counted</span></uui-badge></uui-card>
             </div>
+            <div class="sub-list-header">By document type:</div>
+            <div class="sublist-container content-by-doctype">
+                <div id="content-doctypes-container"></div>
+            </div>
         </div>
 
         <div class="count-section">
@@ -48,10 +52,18 @@
                     Large Files (&gt;2MB)
                     <uui-badge><span id="media-large-files-count">Not counted</span></uui-badge>
                 </uui-card>
+                <uui-card class="count-card">
+                    Total Size
+                    <uui-badge><span id="media-total-size-count">Not counted</span></uui-badge>
+                </uui-card>
             </div>
             <div class="sub-list-header">By file type:</div>
             <div class="sublist-container media-by-filetype">
                 <div id="media-filetypes-container"></div>
+            </div>
+            <div class="sub-list-header">By media type:</div>
+            <div class="sublist-container media-by-mediatype">
+                <div id="media-mediatypes-container"></div>
             </div>
         </div>
 
