@@ -1,6 +1,35 @@
 import { UmbElementMixin } from "@umbraco-cms/backoffice/element-api";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 
+const CSV_ROW_MAP = [
+    ["Content", "Published", "content-published-count"],
+    ["Content", "Unpublished", "content-unpublished-count"],
+    ["Content", "Trashed", "content-trashed-count"],
+    ["Content", "Redirects", "content-redirects-count"],
+    ["Media", "Folders", "media-folder-count"],
+    ["Media", "Images", "media-image-count"],
+    ["Media", "Videos", "media-videos-count"],
+    ["Media", "Audios", "media-audios-count"],
+    ["Media", "Other Files", "media-other-files-count"],
+    ["Media", "Large Files (>2MB)", "media-large-files-count"],
+    ["Users", "Active Users", "users-active-count"],
+    ["Users", "Locked Users", "users-locked-count"],
+    ["Users", "User Groups", "users-groups-count"],
+    ["Users", "Members", "users-members-count"],
+    ["Users", "Member Groups", "users-member-groups-count"],
+    ["Schema", "Document Types", "schema-doctypes-count"],
+    ["Schema", "Templates", "schema-templates-count"],
+    ["Schema", "Partials", "schema-partials-count"],
+    ["Schema", "Scripts", "schema-scripts-count"],
+    ["Schema", "Stylesheets", "schema-stylesheets-count"],
+    ["Schema", "Media Types", "schema-mediatypes-count"],
+    ["Schema", "Member Types", "schema-membertypes-count"],
+    ["Schema", "Data Types", "schema-datatypes-count"],
+    ["Schema", "Languages", "schema-languages-count"],
+    ["Umbraco Forms", "Forms", "forms-count"],
+    ["Umbraco Forms", "Form Entries", "forms-entries-count"],
+];
+
 export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
     /** @type {import('@umbraco-cms/backoffice/notification').UmbNotificationContext} */
     #notificationContext;
@@ -61,6 +90,7 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         this.shadowRoot.getElementById("countAll").addEventListener("click", () => this.fetchAllCounts());
         this.shadowRoot.getElementById("clearStorage").addEventListener("click", () => this.clearStorage()); 
         this.shadowRoot.getElementById("countForms").addEventListener("click", () => this.fetchCount("forms"));
+        this.shadowRoot.getElementById("exportCsv").addEventListener("click", () => this.exportCsv());
 
         this.consumeContext(UMB_NOTIFICATION_CONTEXT, (instance) => {
             this.#notificationContext = instance;
@@ -267,6 +297,59 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         });
     }
 
+
+    #getExportFilename() {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const dd = String(d.getDate()).padStart(2, "0");
+        return `count-things-export-${yyyy}-${mm}-${dd}.csv`;
+    }
+
+    exportCsv() {
+        const rows = [["Category", "Metric", "Count"]];
+        let hasData = false;
+
+        for (const [category, metric, key] of CSV_ROW_MAP) {
+            const value = localStorage.getItem(key);
+            if (value && value !== "Not counted") hasData = true;
+            rows.push([category, metric, value || "Not counted"]);
+        }
+
+        Object.keys(localStorage).sort().forEach((key) => {
+            if (key.startsWith("media-filetype-")) {
+                hasData = true;
+                const ext = key.replace("media-filetype-", "").toUpperCase();
+                rows.push(["Media (File Type)", ext, localStorage.getItem(key)]);
+            }
+        });
+
+        if (!hasData) {
+            this.#notificationContext?.peek("warning", {
+                data: { headline: "Nothing to export", message: "Run some counts first before exporting." },
+            });
+            return;
+        }
+
+        const csv = rows.map((r) => r.join(",")).join("\r\n") + "\r\n";
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = this.#getExportFilename();
+        a.style.display = "none";
+        a.addEventListener("click", (e) => e.stopPropagation());
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }, 150);
+
+        this.#notificationContext?.peek("positive", {
+            data: { headline: "CSV exported!", message: "Your counts have been downloaded." },
+        });
+    }
 
     async fetchAllCounts() {
         const types = ["content", "media", "users", "schema", "forms"];

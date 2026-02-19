@@ -27,9 +27,38 @@
         });
     }
 
-    function init(root) {        
+    function init(root) {
         var q = function (sel) { return root.querySelector(sel); };
         var byId = function (id) { return root.querySelector("#" + id); };
+
+        var CSV_ROW_MAP = [
+            ["Content", "Published", "content-published-count"],
+            ["Content", "Unpublished", "content-unpublished-count"],
+            ["Content", "Trashed", "content-trashed-count"],
+            ["Content", "Redirects", "content-redirects-count"],
+            ["Media", "Folders", "media-folder-count"],
+            ["Media", "Images", "media-image-count"],
+            ["Media", "Videos", "media-videos-count"],
+            ["Media", "Audios", "media-audios-count"],
+            ["Media", "Other Files", "media-other-files-count"],
+            ["Media", "Large Files (>2MB)", "media-large-files-count"],
+            ["Users", "Active Users", "users-active-count"],
+            ["Users", "Locked Users", "users-locked-count"],
+            ["Users", "User Groups", "users-groups-count"],
+            ["Users", "Members", "users-members-count"],
+            ["Users", "Member Groups", "users-member-groups-count"],
+            ["Schema", "Document Types", "schema-doctypes-count"],
+            ["Schema", "Templates", "schema-templates-count"],
+            ["Schema", "Partials", "schema-partials-count"],
+            ["Schema", "Scripts", "schema-scripts-count"],
+            ["Schema", "Stylesheets", "schema-stylesheets-count"],
+            ["Schema", "Media Types", "schema-mediatypes-count"],
+            ["Schema", "Member Types", "schema-membertypes-count"],
+            ["Schema", "Data Types", "schema-datatypes-count"],
+            ["Schema", "Languages", "schema-languages-count"],
+            ["Umbraco Forms", "Forms", "forms-count"],
+            ["Umbraco Forms", "Form Entries", "forms-entries-count"],
+        ];
 
         function setBadge(id, text, color) {
             var el = byId(id);
@@ -178,6 +207,50 @@
             fireConfetti();
         }
 
+        function getExportFilename() {
+            var d = new Date();
+            var yyyy = d.getFullYear();
+            var mm = String(d.getMonth() + 1).padStart(2, "0");
+            var dd = String(d.getDate()).padStart(2, "0");
+            return "count-things-export-" + yyyy + "-" + mm + "-" + dd + ".csv";
+        }
+
+        function exportCsv() {
+            var rows = [["Category", "Metric", "Count"]];
+            var hasData = false;
+
+            CSV_ROW_MAP.forEach(function (entry) {
+                var category = entry[0], metric = entry[1], key = entry[2];
+                var value = localStorage.getItem(key);
+                if (value && value !== "Not counted") hasData = true;
+                rows.push([category, metric, value || "Not counted"]);
+            });
+
+            Object.keys(localStorage).sort().forEach(function (key) {
+                if (key.indexOf("media-filetype-") === 0) {
+                    hasData = true;
+                    var ext = key.replace("media-filetype-", "").toUpperCase();
+                    rows.push(["Media (File Type)", ext, localStorage.getItem(key)]);
+                }
+            });
+
+            if (!hasData) {
+                alert("Nothing to export. Run some counts first.");
+                return;
+            }
+
+            var csv = rows.map(function (r) { return r.join(","); }).join("\r\n") + "\r\n";
+            var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = getExportFilename();
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
         loadStoredCounts();
         byId("countAll")?.addEventListener("click", fetchAll);
         byId("clearStorage")?.addEventListener("click", function () {
@@ -189,6 +262,7 @@
         byId("countUsers")?.addEventListener("click", function () { fetchCount("users"); });
         byId("countSchema")?.addEventListener("click", function () { fetchCount("schema"); });
         byId("countForms")?.addEventListener("click", function () { fetchCount("forms"); });
+        byId("exportCsv")?.addEventListener("click", function () { exportCsv(); });
     }
 
     w.CountThingsV13 = { init: init };
