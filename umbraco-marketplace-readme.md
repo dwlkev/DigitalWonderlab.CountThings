@@ -3,11 +3,12 @@
 A friendly Umbraco backoffice dashboard that shows counts of content, media, users, schema, forms and more.  
 
 ## Features
-- Counts Content (published, unpublished, trashed, redirects)  
-- Counts Media (folders, images, videos, large files, other files, by file type)  
-- Counts Users, groups, members  
-- Counts Schema (doctypes, templates, partials, etc.)  
-- Counts Umbraco Forms (forms + entries)  
+- Counts Content (published, unpublished, trashed, redirects)
+- Counts Media (folders, images, videos, large files, other files, by file type)
+- Counts Users, groups, members
+- Counts Schema (doctypes, templates, partials, etc.)
+- Counts Umbraco Forms (forms + entries)
+- Export all counts to CSV for reporting
 
 ## Compatibility
 - ✅ Umbraco 13, 14, 15, 16, 17
