@@ -171,6 +171,11 @@ public class CountThingsController : ControllerBase
         foreach (var row in fileTypeRows)
             fileTypes[row.Extension] = (int)row.Cnt;
 
+        // TRY_CAST on SQL Server returns NULL for non-numeric data instead of throwing;
+        // SQLite CAST is already lenient (returns 0 for non-numeric)
+        var isSqlite = db.DatabaseType.GetType().Name.IndexOf("Sqlite", StringComparison.OrdinalIgnoreCase) >= 0;
+        var castBigint = isSqlite ? "CAST" : "TRY_CAST";
+
         // Query D — Large files (>2MB, non-folders)
         // umbracoBytes uses Label (bigint) which stores in varcharValue on all DB providers
         // (intValue is 32-bit int, too small for file sizes, so Umbraco uses Nvarchar storage)
@@ -185,12 +190,12 @@ public class CountThingsController : ControllerBase
             WHERE n.nodeObjectType = @0
               AND pt.alias = 'umbracoBytes'
               AND pd.varcharValue IS NOT NULL AND pd.varcharValue <> ''
-              AND CAST(pd.varcharValue AS BIGINT) > 2097152
+              AND " + castBigint + @"(pd.varcharValue AS BIGINT) > 2097152
               AND ct.alias <> 'Folder'", mediaGuid);
 
         // Query E — Total storage size
         var totalSize = db.ExecuteScalar<long>(@"
-            SELECT COALESCE(SUM(CAST(pd.varcharValue AS BIGINT)), 0)
+            SELECT COALESCE(SUM(" + castBigint + @"(pd.varcharValue AS BIGINT)), 0)
             FROM umbracoNode n
             INNER JOIN umbracoContentVersion cv ON n.id = cv.nodeId AND cv.[current] = 1
             INNER JOIN umbracoPropertyData pd ON cv.id = pd.versionId
