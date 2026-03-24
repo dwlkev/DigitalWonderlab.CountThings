@@ -6,7 +6,7 @@
 		<!-- NuGet metadata -->
 		<IsPackable>true</IsPackable>
 		<PackageId>DigitalWonderlab.CountThings</PackageId>
-		<Version>1.4.3</Version>
+		<Version>1.4.4</Version>
 		<!-- Bump for reinstall -->
 		<Authors>Digital Wonderlab</Authors>
 		<Company>Digital Wonderlab</Company>
