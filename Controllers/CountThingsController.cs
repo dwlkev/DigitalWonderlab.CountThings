@@ -1,5 +1,9 @@
-﻿using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using DigitalWonderlab.CountThings;
+using DigitalWonderlab.Telemetry;
+using Umbraco.Cms.Web.Common.Authorization;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Collections.Generic;
@@ -11,8 +15,14 @@ using Umbraco.Cms.Infrastructure.Scoping;
 
 
 
+// Backoffice users only. Up to 1.4.4 this controller had no authorisation, so anyone could read a
+// site's counts (users, members, doctype aliases, media sizes, Forms entries) without signing in.
+// The v14+ dashboard sends the backoffice bearer token on umbraco/api/countthings. Umbraco 13 only runs
+// backoffice cookie authentication on /umbraco/backoffice/* paths, so the v13 dashboard uses the second route.
 [ApiController]
 [Route("umbraco/api/countthings")]
+[Route("umbraco/backoffice/countthings")]
+[Authorize(Policy = AuthorizationPolicies.BackOfficeAccess)]
 public class CountThingsController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -47,6 +57,7 @@ public class CountThingsController : ControllerBase
     [HttpGet("content")]
     public IActionResult GetContentCount()
     {
+        HttpContext.RequestServices.GetService<TelemetryCounters>()?.Increment(CountThingsTelemetryContributor.CountsRun);
         using var scope = _scopeProvider.CreateScope(autoComplete: true);
         var db = scope.Database;
 
@@ -561,4 +572,39 @@ public class CountThingsController : ControllerBase
 
 
 
+
+    public record TelemetryToggleRequest(bool Enabled);
+
+    [HttpGet("telemetry")]
+    public IActionResult GetTelemetry()
+    {
+        var builder = HttpContext.RequestServices.GetRequiredService<TelemetryPayloadBuilder>();
+        return Ok(new { enabled = builder.IsProductToggleOn(CountThingsTelemetryContributor.Product) });
+    }
+
+    // No [Consumes]: on Umbraco 14 / .NET 8 it made the GET twin on the same route 404. [FromBody] already
+    // refuses anything that isn't JSON (415), which is what blocks a cross-site form post.
+    [HttpPost("telemetry")]
+    public IActionResult SaveTelemetry([FromBody] TelemetryToggleRequest request)
+    {
+        var builder = HttpContext.RequestServices.GetRequiredService<TelemetryPayloadBuilder>();
+        builder.SetProductToggle(CountThingsTelemetryContributor.Product, request.Enabled);
+        return Ok(new { enabled = request.Enabled });
+    }
+
+    /// <summary>The exact heartbeat this site would send next, shown on the dashboard's Settings tab.</summary>
+    [HttpGet("telemetry/preview")]
+    public IActionResult PreviewTelemetry()
+    {
+        var builder = HttpContext.RequestServices.GetRequiredService<TelemetryPayloadBuilder>();
+        var contributor = HttpContext.RequestServices.GetServices<ITelemetryContributor>()
+            .First(c => c.ProductId == CountThingsTelemetryContributor.Product);
+        return Ok(new
+        {
+            endpoint = builder.Endpoint,
+            enabled = builder.GloballyEnabled && contributor.IsEnabled(),
+            environmentAllowed = builder.EnvironmentAllowed,
+            payload = builder.Build(contributor)
+        });
+    }
 }

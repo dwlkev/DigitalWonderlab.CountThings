@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
@@ -6,11 +6,12 @@
 		<!-- NuGet metadata -->
 		<IsPackable>true</IsPackable>
 		<PackageId>DigitalWonderlab.CountThings</PackageId>
-		<Version>1.4.4</Version>
+		<Version>1.5.0</Version>
 		<!-- Bump for reinstall -->
 		<Authors>Digital Wonderlab</Authors>
 		<Company>Digital Wonderlab</Company>
 		<Description>Count Things dashboard for Umbraco 13 - 17.</Description>
+		<PackageReleaseNotes>1.5.0 - SECURITY: the Count Things API now requires a signed-in backoffice user (up to 1.4.4 anyone could read a site's counts). Adds an anonymous daily telemetry heartbeat (random install ID, versions, size bands; on by default, off in the dashboard Settings tab or with CountThings:Telemetry:Enabled = false). See the README.</PackageReleaseNotes>
 		<PackageTags>umbraco;umbraco-cms;dashboard;umbraco-marketplace</PackageTags>
 		<RepositoryUrl>https://github.com/dwlkev/DigitalWonderlab.CountThings</RepositoryUrl>
 		<PackageProjectUrl>https://github.com/dwlkev/DigitalWonderlab.CountThings</PackageProjectUrl>
@@ -20,6 +21,12 @@
 
 		<!-- Key for Umbraco App_Plugins packing -->
 		<ContentTargetFolders>content</ContentTargetFolders>
+		<!-- Release assemblies otherwise carry a debug-directory entry holding the absolute .pdb path from the
+		     build machine (username + folder layout) inside the published .dll. We publish no symbols, so drop
+		     them on Release (fixed in 1.5.0; same fix as the Community suite 1.3.2). -->
+		<DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>
+		<DebugSymbols Condition="'$(Configuration)' == 'Release'">false</DebugSymbols>
+		<EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
 		<IncludeBuildOutput>true</IncludeBuildOutput>
 
 	</PropertyGroup>

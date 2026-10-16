@@ -1,4 +1,8 @@
-﻿<div class="count-things-wrapper">
+<div class="count-things-wrapper">
+    <div class="ct-tabs">
+        <button type="button" class="ct-tab active" data-ct-view="counts">Counts</button>
+        <button type="button" class="ct-tab" data-ct-view="settings">Settings</button>
+    </div>
     <uui-box class="count-box">
         <h1>Count Things</h1>
         <p>
@@ -161,6 +165,24 @@
             </uui-card>
         </div>
     </div>
+
+    <uui-box class="ct-settings">
+        <h2>Settings</h2>
+        <h3>Anonymous telemetry</h3>
+        <p>
+            Once a day this site sends Digital Wonderlab a small anonymous report so we can see how many sites use
+            Count Things and on which versions: a random install ID, the package, Umbraco and .NET versions, hosting type,
+            the site's rough size in bands (for example "100-999 content items"), whether Umbraco Forms is installed and how
+            often counts were run. No hostnames, URLs, content, names or emails are sent. It can also be turned off in
+            config with <code>CountThings:Telemetry:Enabled = false</code>.
+        </p>
+        <label><input type="checkbox" id="ct-telemetry-enabled" /> Send anonymous telemetry</label>
+        <div id="ct-telemetry-status"></div>
+        <details id="ct-telemetry-preview-box">
+            <summary>Show exactly what is sent</summary>
+            <pre id="ct-telemetry-preview">Loading...</pre>
+        </details>
+    </uui-box>
 
     <div class="copy">Created with 💗 by <a href="https://digitalwonderlab.com" target="_blank">Digital Wonderlab</a></div>
 </div>

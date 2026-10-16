@@ -1,4 +1,4 @@
-﻿(function (w) {
+(function (w) {
 
     var _ctConfettiReady = null;
 
@@ -9,6 +9,9 @@
         _ctConfettiReady = new Promise(function (resolve, reject) {
             var s = document.createElement("script");
             s.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+            // Pinned file + integrity hash: a changed CDN file is refused instead of run in the backoffice.
+            s.integrity = "sha384-HAH79XdRvHr6axVGh4xQWVCp14kcd32bNk4Xu0sHDHtFQ42n6BAM8ykvB47dGz6D";
+            s.crossOrigin = "anonymous";
             s.async = true;
             s.onload = function () { resolve(); };
             s.onerror = function () { console.warn("Confetti failed to load"); resolve(); }; 
@@ -240,7 +243,8 @@
             Object.values(idMap[type]).forEach(spinner);
 
             try {
-                var res = await fetch("/umbraco/api/countthings/" + type, { headers: { "x-requested-with": "XMLHttpRequest" } });
+                var res = await fetch("/umbraco/backoffice/countthings/" + type, { credentials: "same-origin", headers: { "x-requested-with": "XMLHttpRequest" } });
+                if (!res.ok) throw new Error("HTTP " + res.status);
                 var data = await res.json();
 
                 if (type === "forms" && data && data.installed === false) {
@@ -357,6 +361,68 @@
         byId("countSchema")?.addEventListener("click", function () { fetchCount("schema"); });
         byId("countForms")?.addEventListener("click", function () { fetchCount("forms"); });
         byId("exportCsv")?.addEventListener("click", function () { exportCsv(); });
+
+        // Counts | Settings switch and the anonymous telemetry toggle + preview (1.5.0).
+        // Requests go with the backoffice cookie (same-origin), which the API requires since 1.5.0.
+        (function wireSettings() {
+            var api = function (path, init) {
+                init = init || {};
+                init.credentials = "same-origin";
+                init.headers = Object.assign({ "x-requested-with": "XMLHttpRequest" }, init.headers || {});
+                return fetch("/umbraco/backoffice/countthings/" + path, init);
+            };
+            var toggle = byId("ct-telemetry-enabled");
+            var status = byId("ct-telemetry-status");
+            var preview = byId("ct-telemetry-preview");
+            var box = byId("ct-telemetry-preview-box");
+            var wrapper = q(".count-things-wrapper") || root;
+            if (!toggle || !preview || !box) return;
+
+            function loadPreview() {
+                api("telemetry/preview").then(function (r) {
+                    if (!r.ok) throw new Error("HTTP " + r.status);
+                    return r.json();
+                }).then(function (d) {
+                    var state = !d.enabled ? "Telemetry is off, so nothing is sent."
+                        : !d.environmentAllowed ? "This is a Development environment, so nothing is sent."
+                        : "Sent once a day to " + d.endpoint;
+                    preview.textContent = state + "\n\n" + JSON.stringify(d.payload, null, 2);
+                }).catch(function (e) { preview.textContent = "Could not load the preview (" + e.message + ")."; });
+            }
+            function loadToggle() {
+                api("telemetry").then(function (r) {
+                    if (!r.ok) throw new Error("HTTP " + r.status);
+                    return r.json();
+                }).then(function (d) {
+                    toggle.checked = d.enabled !== false;
+                    status.textContent = toggle.checked ? "Telemetry is on." : "Telemetry is off.";
+                }).catch(function (e) { status.textContent = "Could not load the setting (" + e.message + ")."; });
+            }
+
+            root.querySelectorAll(".ct-tab").forEach(function (tab) {
+                tab.addEventListener("click", function () {
+                    var settings = tab.getAttribute("data-ct-view") === "settings";
+                    root.querySelectorAll(".ct-tab").forEach(function (t) { t.classList.toggle("active", t === tab); });
+                    wrapper.classList.toggle("ct-show-settings", settings);
+                    if (settings) loadToggle();
+                });
+            });
+            toggle.addEventListener("change", function () {
+                api("telemetry", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ enabled: toggle.checked })
+                }).then(function (r) {
+                    if (!r.ok) throw new Error("HTTP " + r.status);
+                    status.textContent = toggle.checked ? "Telemetry is on." : "Telemetry is off.";
+                    if (box.open) loadPreview();
+                }).catch(function (e) {
+                    status.textContent = "Could not save (" + e.message + ").";
+                    toggle.checked = !toggle.checked;
+                });
+            });
+            box.addEventListener("toggle", function () { if (box.open) loadPreview(); });
+        })();
     }
 
     w.CountThingsV13 = { init: init };

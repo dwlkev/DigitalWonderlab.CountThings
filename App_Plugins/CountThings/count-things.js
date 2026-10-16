@@ -1,5 +1,8 @@
 import { UmbElementMixin } from "@umbraco-cms/backoffice/element-api";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
+import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
+
+const API = "/umbraco/api/countthings";
 
 const CSV_ROW_MAP = [
     ["Content", "Published", "content-published-count"],
@@ -34,6 +37,7 @@ const CSV_ROW_MAP = [
 export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
     /** @type {import('@umbraco-cms/backoffice/notification').UmbNotificationContext} */
     #notificationContext;
+    #auth;
 
     constructor() {
         super();
@@ -57,6 +61,9 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         if (!window.confetti) {
             const script = document.createElement("script");
             script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
+            // Pinned file + integrity hash: a changed CDN file is refused instead of run in the backoffice.
+            script.integrity = "sha384-hbhUBXITXDJbdxAutkRZOGlStNARd6f3N2y0fDfrBwMhXEaeaCrpNu7g24F/vYDq";
+            script.crossOrigin = "anonymous";
             script.onload = () => console.log("ConfettiJS Loaded");
             document.head.appendChild(script);
         }
@@ -93,9 +100,76 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
         this.shadowRoot.getElementById("countForms").addEventListener("click", () => this.fetchCount("forms"));
         this.shadowRoot.getElementById("exportCsv").addEventListener("click", () => this.exportCsv());
 
+        this.consumeContext(UMB_AUTH_CONTEXT, (auth) => { this.#auth = auth; });
+        this.wireSettings();
+
         this.consumeContext(UMB_NOTIFICATION_CONTEXT, (instance) => {
             this.#notificationContext = instance;
         });
+    }
+
+    /** Calls the Count Things API with the backoffice bearer token (required since 1.5.0). */
+    async api(path, init = {}) {
+        const token = this.#auth ? await this.#auth.getLatestToken() : null;
+        const headers = { ...(init.headers || {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+        return fetch(`${API}/${path}`, { ...init, headers });
+    }
+
+    /** Counts | Settings switch and the anonymous telemetry toggle + preview. */
+    wireSettings() {
+        const root = this.shadowRoot;
+        const wrapper = root.querySelector(".count-things-wrapper");
+        const toggle = root.getElementById("ct-telemetry-enabled");
+        const status = root.getElementById("ct-telemetry-status");
+        const preview = root.getElementById("ct-telemetry-preview");
+        const box = root.getElementById("ct-telemetry-preview-box");
+
+        const loadPreview = async () => {
+            try {
+                const r = await this.api("telemetry/preview");
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                const d = await r.json();
+                const state = !d.enabled ? "Telemetry is off, so nothing is sent."
+                    : !d.environmentAllowed ? "This is a Development environment, so nothing is sent."
+                    : `Sent once a day to ${d.endpoint}`;
+                preview.textContent = `${state}\n\n${JSON.stringify(d.payload, null, 2)}`;
+            } catch (e) {
+                preview.textContent = `Could not load the preview (${e.message}).`;
+            }
+        };
+        const loadToggle = async () => {
+            try {
+                const r = await this.api("telemetry");
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                toggle.checked = (await r.json()).enabled !== false;
+                status.textContent = toggle.checked ? "Telemetry is on." : "Telemetry is off.";
+            } catch (e) {
+                status.textContent = `Could not load the setting (${e.message}).`;
+            }
+        };
+
+        root.querySelectorAll(".ct-tab").forEach((tab) => tab.addEventListener("click", () => {
+            const settings = tab.dataset.ctView === "settings";
+            root.querySelectorAll(".ct-tab").forEach((t) => t.classList.toggle("active", t === tab));
+            wrapper.classList.toggle("ct-show-settings", settings);
+            if (settings) loadToggle();
+        }));
+        toggle.addEventListener("change", async () => {
+            try {
+                const r = await this.api("telemetry", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ enabled: toggle.checked }),
+                });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                status.textContent = toggle.checked ? "Telemetry is on." : "Telemetry is off.";
+                if (box.open) loadPreview();
+            } catch (e) {
+                status.textContent = `Could not save (${e.message}).`;
+                toggle.checked = !toggle.checked;
+            }
+        });
+        box.addEventListener("toggle", () => { if (box.open) loadPreview(); });
     }
 
     clearStorage() {
@@ -270,7 +344,8 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
                 }
             });
 
-            const response = await fetch(`/umbraco/api/countthings/${type}`);
+            const response = await this.api(type);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             const data = await response.json();
 
             if (type === "forms" && data && data.installed === false) {
