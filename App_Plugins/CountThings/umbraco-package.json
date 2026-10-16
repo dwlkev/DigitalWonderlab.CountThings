@@ -1,7 +1,7 @@
 {
   "$schema": "../../umbraco-package-schema.json",
   "name": "CountThings",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "extensions": [
     {
       "type": "dashboard",

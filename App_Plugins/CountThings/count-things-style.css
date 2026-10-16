@@ -172,14 +172,14 @@
         transform: rotate(360deg);
     }
 }
-/* Counts | Settings switch (1.5.0). The wrapper's .ct-show-settings class swaps the visible view. */
-.ct-tabs { display: flex; gap: 4px; margin: 0 0 12px; }
-.ct-tab { border: 1px solid #d8d7d9; background: #fff; border-radius: 4px; padding: 6px 14px; cursor: pointer; font: inherit; }
-.ct-tab.active { background: #1b264f; border-color: #1b264f; color: #fff; }
+/* Counts | Settings switch (1.5.0): uui-tab-group, styled by the backoffice. The wrapper's
+   .ct-show-settings class swaps the visible view. */
+.ct-tabs { margin: 0 0 12px; border-bottom: 1px solid var(--uui-color-border, #d8d7d9); }
 .ct-settings { display: none; }
 .ct-show-settings .ct-settings { display: block; }
 .ct-show-settings .count-box, .ct-show-settings .count-section { display: none; }
 .ct-settings p { max-width: 720px; }
-.ct-settings label { display: inline-flex; align-items: center; gap: 8px; margin: 8px 0; cursor: pointer; }
-.ct-settings summary { cursor: pointer; margin-top: 12px; }
-.ct-settings pre { white-space: pre-wrap; font-size: 12px; background: #f3f3f5; padding: 10px; border-radius: 4px; max-height: 360px; overflow: auto; }
+.ct-settings uui-toggle { display: block; margin: 12px 0 4px; }
+#ct-telemetry-status { color: var(--uui-color-text-alt, #68676b); font-size: 13px; }
+.ct-settings summary { cursor: pointer; margin-top: 16px; }
+.ct-settings pre { white-space: pre-wrap; font-size: 12px; background: var(--uui-color-surface-alt, #f3f3f5); padding: 10px; border-radius: var(--uui-border-radius, 4px); max-height: 360px; overflow: auto; }

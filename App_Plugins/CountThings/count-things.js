@@ -148,9 +148,9 @@ export default class CountThingsDashboard extends UmbElementMixin(HTMLElement) {
             }
         };
 
-        root.querySelectorAll(".ct-tab").forEach((tab) => tab.addEventListener("click", () => {
+        root.querySelectorAll("uui-tab[data-ct-view]").forEach((tab) => tab.addEventListener("click", () => {
             const settings = tab.dataset.ctView === "settings";
-            root.querySelectorAll(".ct-tab").forEach((t) => t.classList.toggle("active", t === tab));
+            root.querySelectorAll("uui-tab[data-ct-view]").forEach((t) => { t.active = t === tab; });
             wrapper.classList.toggle("ct-show-settings", settings);
             if (settings) loadToggle();
         }));

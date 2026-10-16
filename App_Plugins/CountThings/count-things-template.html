@@ -1,8 +1,8 @@
 <div class="count-things-wrapper">
-    <div class="ct-tabs">
-        <button type="button" class="ct-tab active" data-ct-view="counts">Counts</button>
-        <button type="button" class="ct-tab" data-ct-view="settings">Settings</button>
-    </div>
+    <uui-tab-group class="ct-tabs">
+        <uui-tab label="Counts" data-ct-view="counts" active>Counts</uui-tab>
+        <uui-tab label="Settings" data-ct-view="settings">Settings</uui-tab>
+    </uui-tab-group>
     <uui-box class="count-box">
         <h1>Count Things</h1>
         <p>
@@ -166,9 +166,7 @@
         </div>
     </div>
 
-    <uui-box class="ct-settings">
-        <h2>Settings</h2>
-        <h3>Anonymous telemetry</h3>
+    <uui-box class="ct-settings" headline="Anonymous telemetry">
         <p>
             Once a day this site sends Digital Wonderlab a small anonymous report so we can see how many sites use
             Count Things and on which versions: a random install ID, the package, Umbraco and .NET versions, hosting type,
@@ -176,7 +174,7 @@
             often counts were run. No hostnames, URLs, content, names or emails are sent. It can also be turned off in
             config with <code>CountThings:Telemetry:Enabled = false</code>.
         </p>
-        <label><input type="checkbox" id="ct-telemetry-enabled" /> Send anonymous telemetry</label>
+        <uui-toggle id="ct-telemetry-enabled" label="Send anonymous telemetry"></uui-toggle>
         <div id="ct-telemetry-status"></div>
         <details id="ct-telemetry-preview-box">
             <summary>Show exactly what is sent</summary>

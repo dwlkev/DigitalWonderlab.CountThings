@@ -399,10 +399,10 @@
                 }).catch(function (e) { status.textContent = "Could not load the setting (" + e.message + ")."; });
             }
 
-            root.querySelectorAll(".ct-tab").forEach(function (tab) {
+            root.querySelectorAll("uui-tab[data-ct-view]").forEach(function (tab) {
                 tab.addEventListener("click", function () {
                     var settings = tab.getAttribute("data-ct-view") === "settings";
-                    root.querySelectorAll(".ct-tab").forEach(function (t) { t.classList.toggle("active", t === tab); });
+                    root.querySelectorAll("uui-tab[data-ct-view]").forEach(function (t) { t.active = t === tab; });
                     wrapper.classList.toggle("ct-show-settings", settings);
                     if (settings) loadToggle();
                 });
