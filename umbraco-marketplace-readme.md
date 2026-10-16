@@ -27,7 +27,7 @@ A friendly Umbraco backoffice dashboard that shows counts of content, media, use
 - Release builds no longer embed the build machine's file path inside the DLLs.
 
 ## Telemetry
-Once a day Count Things sends Digital Wonderlab a small anonymous report so we know how many sites use it and on which versions. It is on by default and easy to turn off.
+Once a day Count Things sends us a small anonymous report so we know how many sites use it and on which versions. It is on by default and easy to turn off.
 
 - **Sent:** a random install ID (created on first run, stored in your Umbraco database, not derived from anything about your site), the package, Umbraco and .NET versions, environment type, hosting type, database type, the site's rough size in bands such as `100-999` (content, media, members, users, document types), whether Umbraco Forms is installed, and how many times counts were run in the last day (banded).
 - **Never sent:** hostnames, URLs, content, names, emails or IP addresses.
