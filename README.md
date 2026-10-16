@@ -21,11 +21,6 @@ A friendly Umbraco backoffice dashboard that shows counts of content, media, use
 - Go to Settings and click the Count Things tab
 - Counts are stored in local storage for faster loading.
 
-## Security (1.5.0)
-- **Upgrade to 1.5.0.** Up to 1.4.4 the Count Things API (`/umbraco/api/countthings/*`) did not require a backoffice login, so anyone who knew the address could read a site's counts (users, members, document type aliases, media sizes, Forms entry counts). No names, emails or content were exposed. 1.5.0 requires a signed-in backoffice user for every request.
-- The confetti script loaded from jsDelivr is now pinned with an integrity hash.
-- Release builds no longer embed the build machine's file path inside the DLLs.
-
 ## Telemetry
 Once a day Count Things sends us a small anonymous report so we know how many sites use it and on which versions. It is on by default and easy to turn off.
 
